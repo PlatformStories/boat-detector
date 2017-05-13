@@ -1,7 +1,7 @@
 {
-    "name": "ship-detector",
-    "version": "0.0.2",
-    "description": "Detects ship bounding boxes in a given image strip using a trained CNN classifier to deploy on Protogen-generated region proposals.",
+    "name": "boat-detector",
+    "version": "0.0.1",
+    "description": "A GBDX task that detects boats. Boats include ships, vessels, and all types of watercraft.",
     "properties": {
         "isPublic": true,
         "timeout": 18000
@@ -10,31 +10,37 @@
         {
             "name": "ms_image",
             "type": "directory",
-            "description": "Contains a multispectral GeoTiff image in which to detect ships. This directory should only contain one image, otherwise a file will be selected arbitrarily.",
+            "description": "Contains a 4/8-band multispectral image in geotiff format. This directory should only contain one image, otherwise a file is selected arbitrarily.",
             "required": true
         },
         {
-            "name": "pan_image",
+            "name": "ps_image",
             "type": "directory",
-            "description": "Contains a pansharpened version of ms_image. This directory should only contain one image, otherwise a file will be selected arbitrarily",
+            "description": "Contains the pansharpened counterpart of the multispectal image in geotiff format. This directory should only contain one image, otherwise a file will be selected arbitrarily.",
             "required": true
+        },
+        {
+            "name": "threshold",
+            "type": "string",
+            "description": "Decision threshold. Defaults to 0.5.",
+            "required": false
         }
     ],
     "outputPortDescriptors": [
         {
             "name": "results",
             "type": "directory",
-            "description": "Contains a geojson with protogen region proposals, each given a classification of 0 (no ship) or 1 (ship)."
+            "description": "Contains a geojson with the boat bounding boxes."
         }
     ],
     "containerDescriptors": [
         {
             "type": "DOCKER",
             "properties": {
-                "image": "platformstories/ship-detector",
+                "image": "tdgp/boat-detector",
                 "domain": "nvidiagpu"
             },
-            "command": "python /ship-detector.py",
+            "command": "python /boat-detector.py",
             "isPublic": true
         }
     ]

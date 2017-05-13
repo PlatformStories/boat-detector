@@ -8,7 +8,7 @@ The inputs to the task are a 4/8-band multispectral image and its pansharpened c
 
 ## Run
 
-This is a sample workflow to detect vessels in the New York area. The required input imagery is found in S3.
+This is a sample workflow to detect boats in the New York area. The required input imagery is found in S3.
 
 1. Within an iPython terminal create a GBDX interface an specify the task input location:  
 
@@ -25,31 +25,31 @@ This is a sample workflow to detect vessels in the New York area. The required i
 2. Create a task instance and set the required [inputs](#inputs):  
 
     ```python
-    ship_task = gbdx.Task('boat-detector')
-    ship_task.inputs.pan_image = join(input_location, 'pan_image')
-    ship_task.inputs.ms_image = join(input_location, 'ms_image')
+    bd = gbdx.Task('boat-detector')
+    bd.inputs.ps_image = join(input_location, 'ps_image')
+    bd.inputs.ms_image = join(input_location, 'ms_image')
     ```
 
 3. Initialize a workflow and specify where to save the output:  
 
     ```python
-    ship_wf = gbdx.Workflow([ship_task])
+    wf = gbdx.Workflow([bd])
     random_str = str(uuid.uuid4())
     output_location = join('platform-stories/trial-runs', random_str)
 
-    ship_wf.savedata(ship_task.outputs.results, join(output_location, 'ship_detections'))
+    wf.savedata(bd.outputs.results, join(output_location, 'ship_detections'))
     ```
 
 5. Execute the workflow:  
 
     ```python
-    ship_wf.execute()
+    wf.execute()
     ```
 
 6. Track the status of the workflow as follows:
 
     ```python
-    ship_wf.status
+    wf.status
     ```
 
 
@@ -59,8 +59,9 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 | Name  | Type | Description | Required |
 |---|---|---|---|
-| ms_image | directory | Contains a 4/8-band multispectral GeoTiff. This directory should only contain one image, otherwise a file will be selected arbitrarily. | True |
-| pan_image | directory | Contains the pansharpened counterpart of the multispectal image. This directory should only contain one image, otherwise a file will be selected arbitrarily. | True |
+| ms_image | directory | Contains a 4/8-band multispectral image in geotiff format. This directory should only contain one image, otherwise a file is selected arbitrarily. | True |
+| ps_image | directory | Contains the pansharpened counterpart of the multispectal image in geotiff format. This directory should only contain one image, otherwise a file will be selected arbitrarily. | True |
+| threshold | string | Decision threshold. Defaults to 0.5. | False |
 
 ## Outputs
 
