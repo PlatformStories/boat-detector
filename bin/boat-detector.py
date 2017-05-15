@@ -117,7 +117,6 @@ class BoatDetector(GbdxTaskInterface):
         with open(vector_file) as f:
             feature_collection = geojson.load(f)['features']
 
-        print 'chipping imagery...'
         for feat in feature_collection:
             # get bounding box of input polygon
             geom = feat['geometry']['coordinates'][0]
@@ -297,6 +296,7 @@ class BoatDetector(GbdxTaskInterface):
         boat_vectors = self.extract_boats()
 
         # Format vector file and chip from pan image
+        print 'chipping imagery...'
         self.chip_vectors(boat_vectors)
         self.get_ref_geojson(boat_vectors)
 
@@ -304,6 +304,7 @@ class BoatDetector(GbdxTaskInterface):
         self.prep_chips()
 
         # Deploy model
+        print 'deploying model...'
         self.deploy_model()
 
 
