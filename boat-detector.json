@@ -24,6 +24,30 @@
             "type": "string",
             "description": "Decision threshold. Defaults to 0.5.",
             "required": false
+        },
+        {
+            "name": "max_length",
+            "type": "string",
+            "description": "Maximum anomaly length in meters. Defaults to 1500.",
+            "required": false
+        },
+        {
+            "name": "min_length",
+            "type": "string",
+            "description": "Minimum anomaly length in meters. Defaults to 50.",
+            "required": false
+        },
+        {
+            "name": "max_width",
+            "type": "string",
+            "description": "Maximum anomaly width in meters. Defaults to 100.",
+            "required": false
+        },
+        {
+            "name": "min_width",
+            "type": "string",
+            "description": "Minimum anomaly width in meters. Defaults to 10.",
+            "required": false
         }
     ],
     "outputPortDescriptors": [
