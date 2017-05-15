@@ -1,6 +1,6 @@
 {
     "name": "boat-detector",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A GBDX task that detects boats. Boats include ships, vessels, and all types of watercraft.",
     "properties": {
         "isPublic": true,
