@@ -117,6 +117,7 @@ class BoatDetector(GbdxTaskInterface):
         with open(vector_file) as f:
             feature_collection = geojson.load(f)['features']
 
+        print 'chipping imagery...'
         for feat in feature_collection:
             # get bounding box of input polygon
             geom = feat['geometry']['coordinates'][0]
@@ -128,7 +129,6 @@ class BoatDetector(GbdxTaskInterface):
             out_loc = os.path.join('/chips', str(f_id) + '.tif')
 
             cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} --config GDAL_TIFF_INTERNAL_MASK YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co TILED=YES'.format(str(ulx), str(uly), str(lrx), str(lry), self.ps_image, out_loc)
-            print cmd # debug
 
             try:
                 subprocess.call(cmd, shell=True)
