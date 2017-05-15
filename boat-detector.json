@@ -16,7 +16,7 @@
         {
             "name": "ps_image",
             "type": "directory",
-            "description": "Contains the pansharpened counterpart of the multispectal image in geotiff format. This directory should only contain one image, otherwise a file will be selected arbitrarily.",
+            "description": "Contains the pansharpened counterpart of the multispectal image in geotiff format and EPSG:4326 projection. This directory should only contain one image, otherwise a file will be selected arbitrarily.",
             "required": true
         },
         {

@@ -60,7 +60,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 | Name  | Type | Description | Required |
 |---|---|---|---|
 | ms_image | directory | Contains a 4/8-band multispectral image in geotiff format. This directory should only contain one image, otherwise a file is selected arbitrarily. | True |
-| ps_image | directory | Contains the pansharpened counterpart of the multispectal image in geotiff format. This directory should only contain one image, otherwise a file will be selected arbitrarily. | True |
+| ps_image | directory | Contains the pansharpened counterpart of the multispectal image in geotiff format and EPSG:4326 projection. This directory should only contain one image, otherwise a file will be selected arbitrarily. | True |
 | threshold | string | Decision threshold. Defaults to 0.5. | False |
 | max_length | string | Maximum anomaly length in meters. Defaults to 1500. | False |
 | min_length | string | Minimum anomaly length in meters. Defaults to 50. | False |
