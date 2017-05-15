@@ -1,12 +1,3 @@
-# Inputs:
-# MS image
-# PANSH image
-
-# Note: pan image must be in lat lon (EPSG:4326) for now. this matches the crs output by protogen.
-# Will likely want to switch to UTM, but this is tricky given the different codes. can also
-# use gdalwarp on chips, but this will cause the chipping section to take at least twice as long.
-
-
 import numpy as np
 import geojson
 import subprocess, os
@@ -18,10 +9,10 @@ from keras.models import load_model
 from gbdx_task_interface import GbdxTaskInterface
 
 
-class DetectShips(GbdxTaskInterface):
+class BoatDetector(GbdxTaskInterface):
     '''
     Deploys a trained CNN on Protogen-generated target chips to deteremine which contain
-        ships
+        boats
     '''
 
     def __init__(self):
@@ -30,18 +21,28 @@ class DetectShips(GbdxTaskInterface):
         '''
         GbdxTaskInterface.__init__(self)
 
+        # Image inputs
         self.ms_dir = self.get_input_data_port('ms_image')
         self.ms_image = os.path.join(self.ms_dir, [i for i in os.listdir(self.ms_dir) if i.endswith('.tif')][0])
-        self.pan_dir = self.get_input_data_port('pan_image')
-        self.pan_image = os.path.join(self.pan_dir, [i for i in os.listdir(self.pan_dir) if i.endswith('.tif')][0])
+        self.ps_dir = self.get_input_data_port('ps_image')
+        self.ps_image = os.path.join(self.ps_dir, [i for i in os.listdir(self.ps_dir) if i.endswith('.tif')][0])
+
+        # String inputs
+        self.threshold = float(self.get_input_string_port('threshold', '0.5'))
+        self.max_length = float(self.get_input_string_port('max_length', '1500.0'))
+        self.min_length = float(self.get_input_string_port('min_length', 50.0))
+        self.max_width = float(self.get_input_string_port('max_width', 100.0))
+        self.min_width = float(self.get_input_string_port('min_width', 10.0))
+
+        # Create output directory
         self.outdir = self.get_output_data_port('results')
         os.makedirs(self.outdir)
 
 
     ### PROTOGEN SECTION ###
-    def extract_ships(self):
+    def extract_boats(self):
         '''
-        Use protogen to generate potential ship locations
+        Use protogen to generate potential boat locations
         '''
         # Create masked MS image
         l = protogen.Interface('lulc','masks')
@@ -75,14 +76,14 @@ class DetectShips(GbdxTaskInterface):
         c.image = os.path.split(a.output)[-1]
         c.execute()
 
-        # Extract ships from original image + mask
+        # Extract boats from original image + mask
         p = protogen.Interface('extract', 'vehicles')
         p.extract.vehicles.type = 'ships'
         p.extract.vehicles.visualization = 'binary'
-        p.extract.vehicles.max_length = 1500.0
-        p.extract.vehicles.max_width = 100.0
-        p.extract.vehicles.min_length = 50.0
-        p.extract.vehicles.min_width = 10.0
+        p.extract.vehicles.max_length = self.max_length
+        p.extract.vehicles.max_width = self.max_width
+        p.extract.vehicles.min_length = self.min_length
+        p.extract.vehicles.min_width = self.min_width
         p.extract.vehicles.threshold = 100.0
         p.image_config.bands = [1, 2, 3, 4, 5, 6, 7, 8]
         p.mask_config.bands = [1]
@@ -90,7 +91,7 @@ class DetectShips(GbdxTaskInterface):
         p.mask = os.path.split(c.output)[-1]
         p.execute()
 
-        # Get bbox vectors of ships
+        # Get bbox vectors of boats
         v = protogen.Interface('vectorizer', 'bounding_box')
         v.image_config.bands = [1]
         v.vectorizer.bounding_box.filetype = 'geojson'
@@ -126,7 +127,7 @@ class DetectShips(GbdxTaskInterface):
             # format gdal_translate command
             out_loc = os.path.join('/chips', str(f_id) + '.tif')
 
-            cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} --config GDAL_TIFF_INTERNAL_MASK YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co TILED=YES'.format(str(ulx), str(uly), str(lrx), str(lry), self.pan_image, out_loc)
+            cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} --config GDAL_TIFF_INTERNAL_MASK YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co TILED=YES'.format(str(ulx), str(uly), str(lrx), str(lry), self.ps_image, out_loc)
             print cmd # debug
 
             try:
@@ -265,19 +266,24 @@ class DetectShips(GbdxTaskInterface):
         # Format preds to put in geojson
         results = {}
         for i in range(len(feat_ids)):
-            if preds[i][0] > 0.5:
-                results[feat_ids[i]] = [0, preds[i][1]]
-            else:
+            if preds[i][1] > self.threshold:
                 results[feat_ids[i]] = [1, preds[i][1]]
 
         # Save results to geojson
         with open('/chips/ref.geojson') as f:
             data = geojson.load(f)
 
+        boat_feats = []
+
         for feat in data['features']:
-            res = results[str(feat['properties']['idx'])]
-            feat['properties']['CNN_class'] = res[0]
-            feat['properties']['tank_certainty'] = np.round(res[1], 10).astype(float)
+            try:
+                res = results[str(feat['properties']['idx'])]
+                feat['properties']['tank_certainty'] = np.round(res[1], 10).astype(float)
+                boat_feats.append(feat)
+            except (KeyError):
+                next
+
+        data['features'] = boat_feats
 
         with open(os.path.join(self.outdir, 'results.geojson'), 'wb') as f:
             geojson.dump(data, f)
@@ -288,11 +294,11 @@ class DetectShips(GbdxTaskInterface):
         Execute task
         '''
         # Run protogen to get target chips
-        ship_vectors = self.extract_ships()
+        boat_vectors = self.extract_boats()
 
         # Format vector file and chip from pan image
-        self.chip_vectors(ship_vectors)
-        self.get_ref_geojson(ship_vectors)
+        self.chip_vectors(boat_vectors)
+        self.get_ref_geojson(boat_vectors)
 
         # Format and pad chips
         self.prep_chips()
@@ -302,5 +308,6 @@ class DetectShips(GbdxTaskInterface):
 
 
 if __name__ == '__main__':
-    with DetectShips() as task:
+    with BoatDetector() as task:
         task.invoke()
+
