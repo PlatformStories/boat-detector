@@ -34,7 +34,7 @@ RUN git clone https://${PROTOUSER}:${PROTOPASSWORD}@github.com/digitalglobe/prot
     python setup.py install && \
     cd ..
 
-RUN aws s3 cp s3://gbd-customer-data/58600248-2927-4523-b44b-5fec3d278c09/platform-stories/ship-detector/model/model.h5 /
+RUN aws s3 cp s3://gbd-customer-data/58600248-2927-4523-b44b-5fec3d278c09/platform-stories/boat-detector/model/model.h5 /
 
 COPY ./bin /
 COPY .theanorc /root/.theanorc
