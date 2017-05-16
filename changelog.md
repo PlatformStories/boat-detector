@@ -1,2 +1,3 @@
-**v0.0.1, 5-12-2017**
-Inaugural version.
+**v0.0.2, 5-15-2017**
+
+Model trained only on San Francisco area.
