@@ -2,6 +2,9 @@ import numpy as np
 import geojson
 import subprocess, os
 import protogen
+import os
+import shutil
+import json
 
 from osgeo import gdal
 from scipy.misc import imresize
@@ -11,110 +14,208 @@ from gbdx_task_interface import GbdxTaskInterface
 
 class BoatDetector(GbdxTaskInterface):
     '''
-    Deploys a trained CNN on Protogen-generated target chips to deteremine which contain
-        boats
+    Deploys a trained CNN classifier on protogen-generated candidate regions to determine which ones contain boats.
     '''
 
     def __init__(self):
-        '''
-        Get inputs
-        '''
+
         GbdxTaskInterface.__init__(self)
 
         # Image inputs
         self.ms_dir = self.get_input_data_port('ms_image')
-        self.ms_image = os.path.join(self.ms_dir, [i for i in os.listdir(self.ms_dir) if i.endswith('.tif')][0])
         self.ps_dir = self.get_input_data_port('ps_image')
-        self.ps_image = os.path.join(self.ps_dir, [i for i in os.listdir(self.ps_dir) if i.endswith('.tif')][0])
+        self.mask_dir = self.get_input_data_port('mask')
+
+        # Point to ms. If there are multiple tif's in multiple subdirectories, pick one.
+        self.ms_image_path, self.ms_image = [(dp, f) for dp, dn, fn in os.walk(self.ms_dir) for f in fn if 'tif' in f][0]
+
+        # Point to ps. If there are multiple tif's in multiple subdirectories, pick one.
+        self.ps_image_path, self.ps_image = [(dp, f) for dp, dn, fn in os.walk(self.ps_dir) for f in fn if 'tif' in f][0]
+
+        # Point to mask file if it's there. If there are multiple tif's in multiple subdirectories, pick one.
+        try:
+            self.mask_path, self.mask = [(dp, f) for dp, dn, fn in os.walk(self.mask_dir) for f in fn if 'tif' in f][0]
+        except IndexError:
+            self.mask_path, self.mask = None, None
 
         # String inputs
         self.threshold = float(self.get_input_string_port('threshold', '0.5'))
-        self.max_length = float(self.get_input_string_port('max_length', '1500.0'))
-        self.min_length = float(self.get_input_string_port('min_length', 50.0))
-        self.max_width = float(self.get_input_string_port('max_width', 100.0))
-        self.min_width = float(self.get_input_string_port('min_width', 10.0))
+        self.with_mask = self.get_input_string_port('with_mask', 'true')
+        self.dilation = int(self.get_input_string_port('dilation', '100'))
+        self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
+        self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
+        self.min_size = int(self.get_input_string_port('min_size', '1000'))
+        self.max_size = int(self.get_input_string_port('max_size', '10000'))
 
-        # Create output directory
-        self.outdir = self.get_output_data_port('results')
-        os.makedirs(self.outdir)
+        if self.with_mask in ['True', 'true', 't']:
+            self.with_mask = True
+        else:
+            self.with_mask = False
+
+        # Create output directory and make it the working directory
+        self.output_dir = self.get_output_data_port('results')
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+        os.chdir(self.output_dir)
+
+        # Copy images to the working directory
+        shutil.copyfile(os.path.join(self.ms_image_path, self.ms_image), self.ms_image)
+        shutil.copyfile(os.path.join(self.ps_image_path, self.ps_image), self.ps_image)
+
+        # Get number of bands (depends on sensor)
+        self.no_bands = gdal.Open(self.ms_image).RasterCount
 
 
-    ### PROTOGEN SECTION ###
-    def extract_boats(self):
+    def extract_candidates(self):
         '''
-        Use protogen to generate potential boat locations
+        Use protogen to generate candidate bounding boxes.
+        The function returns the name of the geojson file containing the bounding
+        boxes.
         '''
-        # Create masked MS image
-        l = protogen.Interface('lulc','masks')
-        l.lulc.masks.type = 'single'
-        l.lulc.masks.switch_no_data = False
-        l.lulc.masks.switch_water = False
-        l.lulc.masks.switch_vegetation = True
-        l.lulc.masks.switch_clouds = True
-        l.lulc.masks.switch_bare_soil = True
-        l.lulc.masks.switch_shadows = True
-        l.lulc.masks.switch_unclassified = False
-        l.image_config.bands = [1, 2, 3, 4, 5, 6, 7, 8]
-        l.image = self.ms_image
-        l.execute()
 
-        # Remove LULC noise
-        a = protogen.Interface('morphology', 'connected_area_filter')
-        a.morphology.connected_area_filter.operator = 'opening'
-        a.morphology.connected_area_filter.opening_size_threshold = 10000.0
-        a.morphology.connected_area_filter.closing_size_threshold = 0.0
-        a.image_config.bands = [1]
-        a.image = os.path.split(l.output)[-1]
-        a.execute()
+        # If mask is not provided and with_mask is true then make one
+        if not self.mask and self.with_mask:
 
-        # Close clouds (?)
-        c = protogen.Interface('morphology', 'structural')
-        c.morphology.structural.operator = 'closing'
-        c.morphology.structural.structuring_element = 'disk'
-        c.morphology.structural.radius1 = 10
-        c.image_config.bands = [1]
-        c.image = os.path.split(a.output)[-1]
-        c.execute()
+            print 'Creating water mask'
+            make_mask = True
 
-        # Extract boats from original image + mask
-        p = protogen.Interface('extract', 'vehicles')
-        p.extract.vehicles.type = 'ships'
-        p.extract.vehicles.visualization = 'binary'
-        p.extract.vehicles.max_length = self.max_length
-        p.extract.vehicles.max_width = self.max_width
-        p.extract.vehicles.min_length = self.min_length
-        p.extract.vehicles.min_width = self.min_width
-        p.extract.vehicles.threshold = 100.0
-        p.image_config.bands = [1, 2, 3, 4, 5, 6, 7, 8]
-        p.mask_config.bands = [1]
-        p.image = self.ms_image
-        p.mask = os.path.split(c.output)[-1]
-        p.execute()
+            # Compute normalized difference water index
+            rbr = protogen.Interface('radex_scalar', 'band_ratio')
+            rbr.radex_scalar.band_ratio.index_formula = 'IDX1'
+            rbr.radex_scalar.band_ratio.output_datatype = 'UINT8'
+            rbr.image = self.ms_image
+            rbr.image_config.bands = [1, self.no_bands]
+            rbr.execute()
 
-        # Get bbox vectors of boats
-        v = protogen.Interface('vectorizer', 'bounding_box')
-        v.image_config.bands = [1]
-        v.vectorizer.bounding_box.filetype = 'geojson'
-        v.vectorizer.bounding_box.target_bbox = False
-        v.vectorizer.bounding_box.target_centroid = True
-        v.vectorizer.bounding_box.processor = True
-        v.athos.tree_type = 'union_find'
-        v.athos.area.export = [1]
-        v.image = os.path.split(p.output)[-1]
-        v.execute()
+            # Create mask
+            mot = protogen.Interface('morphology', 'threshold')
+            mot.morphology.threshold.algorithm = 'brute_force'
+            mot.morphology.threshold.threshold = 128
+            mot.morphology.threshold.new_min_value = 0
+            mot.morphology.threshold.new_max_value = 255
+            mot.image = rbr.output
+            mot.image_config.bands = [1]
+            mot.execute()
 
-        return v.output
+            # Remove holes (due to water bodies or shadows) from land with union find size filtering
+            uff = protogen.Interface('union_find', 'filter')
+            uff.unionfind.filter.labels_type = 'binary'
+            uff.unionfind.filter.object_representation = 'coverage'
+            uff.unionfind.filter.spatial_connectivity = 4
+            uff.athos.dimensions = 2
+            uff.athos.tree_type = 'union_find'
+            uff.athos.area.usage = ['remove if less']
+            uff.athos.area.min = [250000]
+            uff.image = mot.output
+            uff.image_config.bands = [1]
+            uff.execute()
 
+            mask = uff.output
 
-    ### CHIPPING SECTION ###
-    def chip_vectors(self, vector_file):
-        '''
-        Create and execute gdal_translate commands for extracting each chip from
-            pansharpened image
-        '''
-        os.makedirs('/chips/')
+        # If mask is provided and with_mask is true then use the provided one
+        elif self.mask and self.with_mask:
+            make_mask = False
+            shutil.copyfile(os.path.join(self.mask_path, self.mask), self.mask)
 
-        with open(vector_file) as f:
+        # Compute band dissimilarity map with radex
+        print 'Compute dissimilarity map'
+        rbd = protogen.Interface('radex_scalar', 'band_dissimilarity')
+        rbd.radex_scalar.band_dissimilarity.type = 'max'
+        rbd.radex_scalar.band_dissimilarity.threshold = 1
+        rbd.image = self.ms_image
+        rbd.image_config.bands = range(1, self.no_bands+1)
+        rbd.execute()
+
+        if self.with_mask:
+
+            # Apply a dilation to remove holes in the water mask (from boats and other anomalies) and invade the coastline
+            print 'Dilate water mask'
+            msd = protogen.Interface('morphology', 'structural')
+            msd.morphology.structural.operator = 'dilation'
+            msd.morphology.structural.structuring_element = 'disk'
+            msd.morphology.structural.radius1 = self.dilation
+            msd.image = self.mask
+            msd.image_config.bands = [1]
+            msd.execute()
+
+            if not make_mask:
+                print 'Match mask and image'
+                # Match the dimensions of the external mask to the dissimilarity map
+                # (in case there are minor differences which will mess up the masking)
+                ipm = protogen.Interface('image_processor', 'match')
+                ipm.image = msd.output
+                ipm.image_config.bands = [1]
+                ipm.slave = rbd.output
+                ipm.slave_config.bands = [1]
+                ipm.execute()
+
+            # Apply the mask on the dissimilarity map
+            print 'Apply mask on dissimilarity map'
+            im = protogen.Interface('image_processor', 'masking')
+            im.image_processor.masking.method = 'inclusion'
+            im.image_processor.masking.tree_type = 'raw'
+            im.image = rbd.output
+            im.image_config.bands = [1]
+            if not make_mask:
+                im.mask = ipm.output
+            else:
+                im.mask = msd.output
+            im.mask_config.bands = [1]
+            im.execute()
+
+        # Min-tree filtering to find objects that conform to boat geometric characteristics
+        print 'Find boat candidates with min-tree filtering'
+        mf = protogen.Interface('max_tree', 'filter')
+        mf.maxtree.filter.filtering_rule = 'subtractive'
+        mf.maxtree.filter.spatial_connectivity = 4
+        mf.maxtree.filter.tree_type = 'min_tree'
+        mf.athos.dimensions = 2
+        mf.athos.tree_type = 'max_tree'
+        mf.athos.area.usage = ['remove if outside']
+        mf.athos.area.min = [self.min_size]
+        mf.athos.area.max = [self.max_size]
+        mf.athos.linearity2.usage = ['remove if outside']
+        mf.athos.linearity2.min = [self.min_linearity]
+        mf.athos.linearity2.max = [self.max_linearity]
+        if self.with_mask:
+            mf.image = im.output
+        else:
+            mf.image = rbd.output
+        mf.image_config.bands = [1]
+        mf.execute()
+
+        # Produce binary image with thresholding
+        print 'Threshold min-tree output'
+        mot = protogen.Interface('morphology', 'threshold')
+        mot.morphology.threshold.algorithm = 'brute_force'
+        mot.morphology.threshold.threshold = 100
+        mot.morphology.threshold.new_min_value = 0
+        mot.morphology.threshold.new_max_value = 255
+        mot.image = mf.output
+        mot.image_config.bands = [1]
+        mot.execute()
+
+        # Generate bounding boxes
+        print 'Generate vectors'
+        vbb = protogen.Interface('vectorizer', 'bounding_box')
+        vbb.vectorizer.bounding_box.filetype = 'geojson'
+        vbb.athos.tree_type = 'union-find'
+        vbb.athos.dimensions = 2
+        vbb.athos.area.export = [1]
+        vbb.image = mot.output
+        vbb.image_config.bands = [1]
+        vbb.execute()
+
+        # Rename geojson
+        shutil.move(vbb.output, 'candidates.geojson')
+
+    def extract_chips(self):
+        '''Extract chips from pan-sharpened image.'''
+
+        if not os.path.exists('/chips/'):
+            os.makedirs('/chips')
+
+        with open('candidates.geojson') as f:
             feature_collection = geojson.load(f)['features']
 
         for feat in feature_collection:
@@ -137,16 +238,13 @@ class BoatDetector(GbdxTaskInterface):
 
         return True
 
-
-    def get_ref_geojson(self, vector_file):
+    def get_ref_geojson(self):
         '''
-        create a reference geojson with only features in chips output directory.
-
-        There's a chance not all vectors were chipped out of the pan image (the pan and ms
-            images don't always overlap perfectly). The ref geojson will avoid errors
-            while generating chips for deploying.
+        Create a reference geojson which only contains candidates for which chipping was successful.
+        (Failures in chipping occur due to misaligment of the multispectral with the pansharpened.)
         '''
-        with open(vector_file) as f:
+
+        with open('candidates.geojson') as f:
             data = geojson.load(f)
 
         # Get list of idxs in output directory
@@ -166,12 +264,11 @@ class BoatDetector(GbdxTaskInterface):
             geojson.dump(data, f)
 
 
-    ### PREPARE CHIP DATA SECTION ###
     def th_to_tf(self, X):
         '''
         Helper function to transform a normalized (3,h,w) image (theano ordering) to a
-            (h,w,3) rgb image (tensor flow). This function is called int the prep chips
-            function.
+        (h,w,3) rgb image (tensor flow). This function is called int the prep chips
+        function.
         '''
         rgb_array = np.zeros((X.shape[1], X.shape[2], 3), 'float32')
         rgb_array[...,0] = X[0]
@@ -182,10 +279,11 @@ class BoatDetector(GbdxTaskInterface):
 
     def prep_chips(self):
         '''
-        Open and reshape chips to input size. Largest side of the chip will be resized to
-            150px (input shape for model), the smaller side will be zero-padded to create
-            a square array.
+        Reshape chips to input size.
+        Largest side of the chip is resized to 150px (input shape for model).
+        The smaller side is zero-padded to create a square array.
         '''
+
         chips = [os.path.join('/chips/', chip) for chip in os.listdir('/chips/') if chip.endswith('.tif')]
 
         for chip in chips:
@@ -228,9 +326,7 @@ class BoatDetector(GbdxTaskInterface):
             os.remove(chip)
 
     def generate_dataset(self):
-        '''
-        generate chips in batches of 2000 for deploying
-        '''
+        '''Generate chips in batches of 2000 for deploying.'''
         chips = [os.path.join('/chips',chip) for chip in os.listdir('/chips/') if chip.endswith('.npy')]
 
         for batch_ix in range(0, len(chips), 2000):
@@ -247,11 +343,9 @@ class BoatDetector(GbdxTaskInterface):
 
 
     def deploy_model(self):
-        '''
-        deploy the model
-        '''
+        '''Deploy model.'''
         feat_ids, preds = [],[]
-        model = load_model('model.h5')
+        model = load_model('/model.h5')
         target_data_gen = self.generate_dataset()
 
         while True:
@@ -284,31 +378,35 @@ class BoatDetector(GbdxTaskInterface):
 
         data['features'] = boat_feats
 
-        with open(os.path.join(self.outdir, 'results.geojson'), 'wb') as f:
+        with open(os.path.join(self.output_dir, 'results.geojson'), 'wb') as f:
             geojson.dump(data, f)
 
 
     def invoke(self):
-        '''
-        Execute task
-        '''
-        # Run protogen to get target chips
-        boat_vectors = self.extract_boats()
+
+        # Run protogen to get candidate bounding boxes
+        print 'Detecting candidates...'
+        candidates = self.extract_candidates()
 
         # Format vector file and chip from pan image
-        print 'chipping imagery...'
-        self.chip_vectors(boat_vectors)
-        self.get_ref_geojson(boat_vectors)
+        print 'Chipping...'
+        self.extract_chips()
+        self.get_ref_geojson()
 
         # Format and pad chips
         self.prep_chips()
 
         # Deploy model
-        print 'deploying model...'
+        print 'Deploying model...'
         self.deploy_model()
+
+        # Cleanup
+        print 'Cleanup'
+        os.remove(self.ms_image)
+        os.remove(self.ps_image)
+        shutil.rmtree('/chips')
 
 
 if __name__ == '__main__':
     with BoatDetector() as task:
         task.invoke()
-

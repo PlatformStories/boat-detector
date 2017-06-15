@@ -2,13 +2,13 @@ FROM nvidia/cuda:7.5-cudnn5-devel
 
 MAINTAINER Nikki Aldeborgh <nikki.aldeborgh@digitalglobe.com>
 
-RUN apt-get -y update && apt-get -y install \ 
+RUN apt-get -y update && apt-get -y install \
     python \
     python-pip \
     python-six \
     python-dev \
     python-setuptools \
-    libatlas-base-dev \ 
+    libatlas-base-dev \
     gfortran \
     libyaml-dev \
     gdal-bin \
@@ -20,13 +20,13 @@ RUN apt-get -y update && apt-get -y install \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install awscli Theano==0.9.0 Keras==1.2.2 geojson h5py Pillow==2.6.0 
+RUN pip install awscli Theano==0.9.0 Keras==1.2.2 geojson h5py Pillow==2.6.0
 
-ARG PROTOUSER 
+ARG PROTOUSER
 ARG PROTOPASSWORD
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
-ARG AWS_SESSION_TOKEN
+ARG AWS_SESSION_TOKEN 
 
 RUN git clone https://${PROTOUSER}:${PROTOPASSWORD}@github.com/digitalglobe/protogen && \
     cd protogen && \
