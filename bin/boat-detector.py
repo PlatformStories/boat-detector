@@ -10,7 +10,7 @@ from osgeo import gdal
 from scipy.misc import imresize
 from keras.models import load_model
 from gbdx_task_interface import GbdxTaskInterface
-
+from os.path import join
 
 class BoatDetector(GbdxTaskInterface):
     '''
@@ -52,18 +52,10 @@ class BoatDetector(GbdxTaskInterface):
         else:
             self.with_mask = False
 
-        # Create output directory and make it the working directory
+        # Create output directory
         self.output_dir = self.get_output_data_port('results')
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        os.chdir(self.output_dir)
-
-        # Copy images to the working directory
-        shutil.copyfile(os.path.join(self.ms_image_path, self.ms_image), self.ms_image)
-        shutil.copyfile(os.path.join(self.ps_image_path, self.ps_image), self.ps_image)
-
-        # Get number of bands (depends on sensor)
-        self.no_bands = gdal.Open(self.ms_image).RasterCount
 
 
     def extract_candidates(self):
@@ -72,6 +64,12 @@ class BoatDetector(GbdxTaskInterface):
         The function returns the name of the geojson file containing the bounding
         boxes.
         '''
+
+        # Make the multispectral image directory the working directory
+        os.chdir(self.ms_image_path)
+
+        # Get number of bands (depends on sensor)
+        no_bands = gdal.Open(self.ms_image).RasterCount
 
         # If mask is not provided and with_mask is true then make one
         if not self.mask and self.with_mask:
@@ -84,7 +82,7 @@ class BoatDetector(GbdxTaskInterface):
             rbr.radex_scalar.band_ratio.index_formula = 'IDX1'
             rbr.radex_scalar.band_ratio.output_datatype = 'UINT8'
             rbr.image = self.ms_image
-            rbr.image_config.bands = [1, self.no_bands]
+            rbr.image_config.bands = [1, no_bands]
             rbr.execute()
 
             # Create mask
@@ -112,10 +110,13 @@ class BoatDetector(GbdxTaskInterface):
 
             mask = uff.output
 
+            # Copy mask to output folder (for debugging purposes)
+            shutil.copy(mask, self.output_dir)
+
         # If mask is provided and with_mask is true then use the provided one
         elif self.mask and self.with_mask:
             make_mask = False
-            shutil.copyfile(os.path.join(self.mask_path, self.mask), self.mask)
+            shutil.copy(os.path.join(self.mask_path, self.mask), '.')
 
         # Compute band dissimilarity map with radex
         print 'Compute dissimilarity map'
@@ -123,7 +124,7 @@ class BoatDetector(GbdxTaskInterface):
         rbd.radex_scalar.band_dissimilarity.type = 'max'
         rbd.radex_scalar.band_dissimilarity.threshold = 1
         rbd.image = self.ms_image
-        rbd.image_config.bands = range(1, self.no_bands+1)
+        rbd.image_config.bands = range(1, no_bands+1)
         rbd.execute()
 
         if self.with_mask:
@@ -206,17 +207,22 @@ class BoatDetector(GbdxTaskInterface):
         vbb.image_config.bands = [1]
         vbb.execute()
 
-        # Rename geojson
+        # Rename geojson and copy it to output folder (for debugging purposes)
         shutil.move(vbb.output, 'candidates.geojson')
+        shutil.copy('candidates.geojson', self.output_dir)
+
 
     def extract_chips(self):
         '''Extract chips from pan-sharpened image.'''
 
+        # Make the pansharpened image directory the working directory
+        os.chdir(self.ps_image_path)
+
+        with open(join(self.ms_image_path, 'candidates.geojson')) as f:
+            feature_collection = geojson.load(f)['features']
+
         if not os.path.exists('/chips/'):
             os.makedirs('/chips')
-
-        with open('candidates.geojson') as f:
-            feature_collection = geojson.load(f)['features']
 
         for feat in feature_collection:
             # get bounding box of input polygon
@@ -226,7 +232,7 @@ class BoatDetector(GbdxTaskInterface):
             ulx, lrx, uly, lry = min(xs), max(xs), max(ys), min(ys)
 
             # format gdal_translate command
-            out_loc = os.path.join('/chips', str(f_id) + '.tif')
+            out_loc = join('/chips', str(f_id) + '.tif')
 
             cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} --config GDAL_TIFF_INTERNAL_MASK YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co TILED=YES'.format(str(ulx), str(uly), str(lrx), str(lry), self.ps_image, out_loc)
 
@@ -244,7 +250,7 @@ class BoatDetector(GbdxTaskInterface):
         (Failures in chipping occur due to misaligment of the multispectral with the pansharpened.)
         '''
 
-        with open('candidates.geojson') as f:
+        with open(join(self.ms_image_path, 'candidates.geojson')) as f:
             data = geojson.load(f)
 
         # Get list of idxs in output directory
@@ -399,12 +405,6 @@ class BoatDetector(GbdxTaskInterface):
         # Deploy model
         print 'Deploying model...'
         self.deploy_model()
-
-        # Cleanup
-        print 'Cleanup'
-        os.remove(self.ms_image)
-        os.remove(self.ps_image)
-        shutil.rmtree('/chips')
 
 
 if __name__ == '__main__':
