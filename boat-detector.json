@@ -58,13 +58,13 @@
         {
             "name": "min_size",
             "type": "string",
-            "description": "Minimum boat candidate size in m2. Default is 1000.",
+            "description": "Minimum boat candidate size in m2. Default is 500.",
             "required": false
         },
         {
             "name": "max_size",
             "type": "string",
-            "description": "Maximum boat candidate size in m2. Default is 10000.",
+            "description": "Maximum boat candidate size in m2. Default is 6000.",
             "required": false
         }
     ],

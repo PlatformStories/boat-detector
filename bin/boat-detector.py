@@ -14,17 +14,17 @@ from gbdx_task_interface import GbdxTaskInterface
 from os.path import join
 
 
-def preprocess(data_r):
+def preprocess(data):
     """
-    Args: data_r: list of images
+    Args: data: list of images
           intensities: list of R,G,B intensities to subtract from RGB bands
     Returns: data
           data: list of mean-adjusted & RGB -> BGR transformed images
     """
     # RGB -> BGR:
-    data[:, :, :, 0] -= 103.939
-    data[:, :, :, 1] -= 116.779
-    data[:, :, :, 2] -= 123.68
+    data[:, :, :, 0] -= 104
+    data[:, :, :, 1] -= 114
+    data[:, :, :, 2] -= 124
     return data
 
 def resize_image(path, side_dim):
@@ -44,10 +44,10 @@ def resize_image(path, side_dim):
 
         # Get resize and pad dimensions for chip
         if x >= y:
-            resize = (resize_small, 150)
+            resize = (resize_small, 224)
             p = ((0,0),(0,pad_size),(0,0))
         else:
-            resize = (150, resize_small)
+            resize = (224, resize_small)
             p = ((0, pad_size), (0,0), (0,0))
 
         resized = np.pad(cv2.resize(img, resize), p, 'constant', constant_values=0)
@@ -56,6 +56,7 @@ def resize_image(path, side_dim):
         print 'Resizing can not be performed. Corrupt chip?'
         resized = np.zeros([rows, cols, 3], dtype=int)
     return resized
+
 
 def get_utm_info(image):
     "Return UTM info of image. Image must be in UTM projection."
@@ -98,8 +99,8 @@ class BoatDetector(GbdxTaskInterface):
         self.dilation = int(self.get_input_string_port('dilation', '100'))
         self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
-        self.min_size = int(self.get_input_string_port('min_size', '1000'))
-        self.max_size = int(self.get_input_string_port('max_size', '10000'))
+        self.min_size = int(self.get_input_string_port('min_size', '500'))
+        self.max_size = int(self.get_input_string_port('max_size', '6000'))
 
         if self.with_mask in ['True', 'true', 't']:
             self.with_mask = True
@@ -265,6 +266,9 @@ class BoatDetector(GbdxTaskInterface):
         shutil.move(vbb.output, 'candidates.geojson')
         shutil.copy('candidates.geojson', self.output_dir)
 
+        # Return to home dir
+        os.chdir('/')
+
 
     def extract_chips(self):
         '''Extract chips from pan-sharpened image.'''
@@ -297,7 +301,7 @@ class BoatDetector(GbdxTaskInterface):
             cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} '\
                   '--config GDAL_TIFF_INTERNAL_MASK YES -co TILED='\
                   'YES'.format(str(ulx), str(uly), str(lrx), str(lry),
-                               self.ps_image, out_loc)
+                               join(self.ps_image_path, self.ps_image), out_loc)
 
             try:
                 subprocess.call(cmd, shell=True)
@@ -315,12 +319,12 @@ class BoatDetector(GbdxTaskInterface):
         chips = glob(join('chips', '*.tif'))
 
         # Classify chips in batches
-        indices = np.arange(0, len(chips), 2000)
+        indices = np.arange(0, len(chips), 100)
         no_batches = len(indices)
 
         for no, index in enumerate(indices):
-            batch = chips[index: (index + 2000)]
-            X = preprocess(np.array([resize_image(chip, 150,150) for chip in batch]))
+            batch = chips[index: (index + 100)]
+            X = preprocess(np.array([resize_image(chip, 224) for chip in batch]))
             fids = [os.path.split(chip)[-1][:-4] for chip in batch]
 
             # Deploy model on batch
@@ -335,7 +339,6 @@ class BoatDetector(GbdxTaskInterface):
 
             t2 = time.time()
             print 'Batch classification time: {}s'.format(t2-t1)
-            logging.debug('Batch classification time: {}s'.format(t2-t1))
 
         # Save results to geojson
         with open(join(self.ms_image_path, 'candidates.geojson')) as f:
@@ -345,8 +348,8 @@ class BoatDetector(GbdxTaskInterface):
         boat_feats = []
         for feat in data['features']:
             try:
-                res = boat[str(feat['properties']['idx'])]
-                feat['properties']['boat_certainty'] = np.round(res[1], 10).astype(float)
+                res = boats[str(feat['properties']['idx'])]
+                feat['properties']['boat_certainty'] = np.round(res, 10).astype(float)
                 boat_feats.append(feat)
             except (KeyError):
                 continue
