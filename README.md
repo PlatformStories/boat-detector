@@ -31,7 +31,7 @@ This is a sample workflow to detect boats in the New York area. The required inp
 2. Create a task instance and set the required [inputs](#inputs):  
 
     ```python
-    bd = gbdx.Task('boat-detector')
+    bd = gbdx.Task('boat-detector-dev')
     bd.inputs.ps_image = join(input_location, 'ps_image')
     bd.inputs.ms_image = join(input_location, 'ms_image')
     bd.inputs.mask = join(input_location, 'mask')
@@ -44,7 +44,7 @@ This is a sample workflow to detect boats in the New York area. The required inp
     random_str = str(uuid.uuid4())
     output_location = join('platform-stories/trial-runs', random_str)
 
-    wf.savedata(bd.outputs.results, join(output_location, 'ship_detections'))
+    wf.savedata(bd.outputs.results, join(output_location, 'boat_detections'))
     ```
 
 5. Execute the workflow:  
