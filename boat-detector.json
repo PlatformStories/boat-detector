@@ -10,7 +10,7 @@
         {
             "name": "ms_image",
             "type": "directory",
-            "description": "Contains a 4/8-band atmospherically multispectral image in geotiff format. This directory should contain only one image otherwise one is selected arbitrarily.",
+            "description": "Contains a 4/8-band atmospherically multispectral image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily.",
             "required": true
         },
         {

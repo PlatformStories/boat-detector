@@ -76,8 +76,8 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 | Name  | Type | Description | Required |
 |---|---|---|---|
-| ms_image | directory | Contains a 4/8-band atmospherically multispectral image in geotiff format. This directory should contain only one image otherwise one is selected arbitrarily. | True |
-| ps_image | directory | Contains the pan-sharpened counterpart of the multispectal image in geotiff format and EPSG:4326 projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
+| ms_image | directory | Contains a 4/8-band atmospherically multispectral image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
+| ps_image | directory | Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
 | mask | Directory | Contains a binary image of the same spatial dimensions as the input images where intensity 255 corresponds to water and intensity 0 to background. | False |
 | threshold | string | Decision threshold. Defaults to 0.5. | False |
 | with_mask | String | If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true. | False |
