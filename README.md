@@ -34,6 +34,7 @@ This is a sample workflow to detect boats in the New York area. The required inp
     bd = gbdx.Task('boat-detector')
     bd.inputs.ps_image = join(input_location, 'ps_image')
     bd.inputs.ms_image = join(input_location, 'ms_image')
+    bd.inputs.mask = join(input_location, 'mask')
     ```
 
 3. Initialize a workflow and specify where to save the output:  
