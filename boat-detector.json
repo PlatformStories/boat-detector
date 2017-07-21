@@ -79,7 +79,7 @@
         {
             "type": "DOCKER",
             "properties": {
-                "image": "tdgp/boat-detector",
+                "image": "tdgp/boat-detector-dev",
                 "domain": "nvidiap2"
             },
             "command": "python /boat-detector.py",
