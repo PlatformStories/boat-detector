@@ -1,16 +1,72 @@
 import numpy as np
-import geojson
-import subprocess, os
+import geojson, json
+import time, os, shutil
 import protogen
-import os
-import shutil
-import json
+import utm
+import cv2
+import subprocess
 
+from glob import glob
 from osgeo import gdal
 from scipy.misc import imresize
 from keras.models import load_model
 from gbdx_task_interface import GbdxTaskInterface
 from os.path import join
+
+
+def preprocess(data_r):
+    """
+    Args: data_r: list of images
+          intensities: list of R,G,B intensities to subtract from RGB bands
+    Returns: data
+          data: list of mean-adjusted & RGB -> BGR transformed images
+    """
+    # RGB -> BGR:
+    data[:, :, :, 0] -= 103.939
+    data[:, :, :, 1] -= 116.779
+    data[:, :, :, 2] -= 123.68
+    return data
+
+def resize_image(path, side_dim):
+    """
+    Args: path [string], rows, cols [int]
+        path: path of an image; side_dim - columns and rows
+        of resized image
+    Returns: resized [numpy array rows x columns x 3]
+        resized image
+	(if the image is invalid, it returns a rowsxcols array of zeros)
+    """
+    img = cv2.imread(path)
+    try:
+        x, y, _ = img.shape
+        resize_small = int((side_dim * min(x,y)) / max(x,y))
+        pad_size = side_dim - resize_small
+
+        # Get resize and pad dimensions for chip
+        if x >= y:
+            resize = (resize_small, 150)
+            p = ((0,0),(0,pad_size),(0,0))
+        else:
+            resize = (150, resize_small)
+            p = ((0, pad_size), (0,0), (0,0))
+
+        resized = np.pad(cv2.resize(img, resize), p, 'constant', constant_values=0)
+
+    except:
+        print 'Resizing can not be performed. Corrupt chip?'
+        resized = np.zeros([rows, cols, 3], dtype=int)
+    return resized
+
+def get_utm_info(image):
+    "Return UTM info of image. Image must be in UTM projection."
+    sample = gdal.Open(image)
+    projection_info = sample.GetProjectionRef()
+    where = projection_info.find('UTM zone') + 9
+    utm_info = projection_info[where:where+3]
+    utm_number, utm_letter = int(utm_info[0:2]), utm_info[2]
+    return utm_number, utm_letter
+
+
 
 class BoatDetector(GbdxTaskInterface):
     '''
@@ -26,20 +82,18 @@ class BoatDetector(GbdxTaskInterface):
         self.ps_dir = self.get_input_data_port('ps_image')
         self.mask_dir = self.get_input_data_port('mask')
 
-        # Point to ms. If there are multiple tif's in multiple subdirectories, pick one.
+        # Point to imgs. If there are multiple tif's in multiple subdirectories, pick one.
         self.ms_image_path, self.ms_image = [(dp, f) for dp, dn, fn in os.walk(self.ms_dir) for f in fn if 'tif' in f][0]
-
-        # Point to ps. If there are multiple tif's in multiple subdirectories, pick one.
         self.ps_image_path, self.ps_image = [(dp, f) for dp, dn, fn in os.walk(self.ps_dir) for f in fn if 'tif' in f][0]
 
         # Point to mask file if it's there. If there are multiple tif's in multiple subdirectories, pick one.
         try:
             self.mask_path, self.mask = [(dp, f) for dp, dn, fn in os.walk(self.mask_dir) for f in fn if 'tif' in f][0]
-        except IndexError:
+        except:
             self.mask_path, self.mask = None, None
 
         # String inputs
-        self.threshold = float(self.get_input_string_port('threshold', '0.5'))
+        self.threshold = float(self.get_input_string_port('threshold', '0.657'))
         self.with_mask = self.get_input_string_port('with_mask', 'true')
         self.dilation = int(self.get_input_string_port('dilation', '100'))
         self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
@@ -116,7 +170,7 @@ class BoatDetector(GbdxTaskInterface):
         # If mask is provided and with_mask is true then use the provided one
         elif self.mask and self.with_mask:
             make_mask = False
-            shutil.copy(os.path.join(self.mask_path, self.mask), '.')
+            shutil.copy(join(self.mask_path, self.mask), '.')
 
         # Compute band dissimilarity map with radex
         print 'Compute dissimilarity map'
@@ -215,26 +269,35 @@ class BoatDetector(GbdxTaskInterface):
     def extract_chips(self):
         '''Extract chips from pan-sharpened image.'''
 
-        # Make the pansharpened image directory the working directory
-        os.chdir(self.ps_image_path)
+        # Get UTM info for conversion
+        utm_num, utm_let = get_utm_info(join(self.ps_image_path, self.ps_image))
 
         with open(join(self.ms_image_path, 'candidates.geojson')) as f:
             feature_collection = geojson.load(f)['features']
 
-        if not os.path.exists('/chips/'):
-            os.makedirs('/chips')
+        # Create directory for storing chips
+        chip_dir = join(self.ps_image_path, '/chips/')
+        if not os.path.exists(chip_dir):
+            os.makedirs(chip_dir)
 
         for feat in feature_collection:
             # get bounding box of input polygon
-            geom = feat['geometry']['coordinates'][0]
+            polygon = feat['geometry']['coordinates'][0]
             f_id = feat['properties']['idx']
-            xs, ys = [i[0] for i in geom], [i[1] for i in geom]
+            xs, ys = zip(*polygon)
             ulx, lrx, uly, lry = min(xs), max(xs), max(ys), min(ys)
 
-            # format gdal_translate command
-            out_loc = join('/chips', str(f_id) + '.tif')
+            # Convert corner coords to UTM
+            ulx, uly, utm_num1, utm_let1 = utm.from_latlon(uly, ulx, force_zone_number=utm_num)
+            lrx, lry, utm_num2, utm_let2 = utm.from_latlon(lry, lrx, force_zone_number=utm_num)
 
-            cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} --config GDAL_TIFF_INTERNAL_MASK YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co TILED=YES'.format(str(ulx), str(uly), str(lrx), str(lry), self.ps_image, out_loc)
+            # format gdal_translate command
+            out_loc = join(chip_dir, str(f_id) + '.tif')
+
+            cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} '\
+                  '--config GDAL_TIFF_INTERNAL_MASK YES -co TILED='\
+                  'YES'.format(str(ulx), str(uly), str(lrx), str(lry),
+                               self.ps_image, out_loc)
 
             try:
                 subprocess.call(cmd, shell=True)
@@ -244,147 +307,53 @@ class BoatDetector(GbdxTaskInterface):
 
         return True
 
-    def get_ref_geojson(self):
-        '''
-        Create a reference geojson which only contains candidates for which chipping was successful.
-        (Failures in chipping occur due to misaligment of the multispectral with the pansharpened.)
-        '''
-
-        with open(join(self.ms_image_path, 'candidates.geojson')) as f:
-            data = geojson.load(f)
-
-        # Get list of idxs in output directory
-        chips = [f[:-4] for f in os.listdir('/chips/') if f.endswith('.tif')]
-        feature_collection = data['features']
-        valid_feats = []
-
-        # Check if vector exists in chip directory
-        for feat in feature_collection:
-            if str(feat['properties']['idx']) in chips:
-                valid_feats.append(feat)
-
-        data['features'] = valid_feats
-        output_file = '/chips/ref.geojson'
-
-        with open(output_file, 'wb') as f:
-            geojson.dump(data, f)
-
-
-    def th_to_tf(self, X):
-        '''
-        Helper function to transform a normalized (3,h,w) image (theano ordering) to a
-        (h,w,3) rgb image (tensor flow). This function is called int the prep chips
-        function.
-        '''
-        rgb_array = np.zeros((X.shape[1], X.shape[2], 3), 'float32')
-        rgb_array[...,0] = X[0]
-        rgb_array[...,1] = X[1]
-        rgb_array[...,2] = X[2]
-        return rgb_array
-
-
-    def prep_chips(self):
-        '''
-        Reshape chips to input size.
-        Largest side of the chip is resized to 150px (input shape for model).
-        The smaller side is zero-padded to create a square array.
-        '''
-
-        chips = [os.path.join('/chips/', chip) for chip in os.listdir('/chips/') if chip.endswith('.tif')]
-
-        for chip in chips:
-
-            # Format each chip
-            raster_array = []
-
-            if type(chip) == str:
-                # Open chip
-                img = gdal.Open(chip)
-
-                # Get size info
-                bands = img.RasterCount
-                x, y = img.RasterXSize, img.RasterYSize
-            else:
-                bands = np.shape(chip)[0]
-                x, y = np.shape(chip)[-1], np.shape(chip)[-2]
-
-            resize_small = (150 * min(x,y)) / max(x,y)
-            pad_size = 150 - resize_small
-
-            if x >= y:
-                resize = (resize_small, 150)
-                p = ((0,pad_size),(0,0))
-            else:
-                resize = (150, resize_small)
-                p = ((0,0),(0, pad_size))
-
-            # Read chip as numpy array, reshape and pad
-            for band in xrange(1, bands + 1):
-                if type(chip) == str:
-                    arr = img.GetRasterBand(band).ReadAsArray()
-                else:
-                    arr = chip[band - 1]
-                arr = np.pad(imresize(arr, resize), p, 'constant', constant_values=0)
-                raster_array.append(arr)
-
-            # Save updated chip in npy format, remove old chip
-            np.save(chip[:-4] + '.npy', self.th_to_tf(np.array(raster_array)))
-            os.remove(chip)
-
-    def generate_dataset(self):
-        '''Generate chips in batches of 2000 for deploying.'''
-        chips = [os.path.join('/chips',chip) for chip in os.listdir('/chips/') if chip.endswith('.npy')]
-
-        for batch_ix in range(0, len(chips), 2000):
-            # Generate batch
-            batch = chips[batch_ix:batch_ix + 2000]
-            X, fid = [], []
-
-            for chip in batch:
-                X.append(np.load(chip) / 255.)
-                fid.append(os.path.split(chip)[-1][:-4])
-
-            X = np.array(X)
-            yield(X, fid)
-
 
     def deploy_model(self):
         '''Deploy model.'''
-        feat_ids, preds = [],[]
         model = load_model('/model.h5')
-        target_data_gen = self.generate_dataset()
+        boats = {}
+        chips = glob(join('chips', '*.tif'))
 
-        while True:
-            try:
-                x, fids = target_data_gen.next()
-            except (StopIteration):
-                break
-            feat_ids += list(fids)
-            preds += list(model.predict(x))
+        # Classify chips in batches
+        indices = np.arange(0, len(chips), 2000)
+        no_batches = len(indices)
 
-        # Format preds to put in geojson
-        results = {}
-        for i in range(len(feat_ids)):
-            if preds[i][1] > self.threshold:
-                results[feat_ids[i]] = [1, preds[i][1]]
+        for no, index in enumerate(indices):
+            batch = chips[index: (index + 2000)]
+            X = preprocess(np.array([resize_image(chip, 150,150) for chip in batch]))
+            fids = [os.path.split(chip)[-1][:-4] for chip in batch]
+
+            # Deploy model on batch
+            print 'Classifying batch {} of {}'.format(no+1, no_batches)
+            t1 = time.time()
+            yprob = list(model.predict_on_batch(X))
+
+            # create dict of boat fids and certainties
+            for ix, pred in enumerate(yprob):
+                if pred[1] > self.threshold:
+                    boats[fids[ix]] = pred[1]
+
+            t2 = time.time()
+            print 'Batch classification time: {}s'.format(t2-t1)
+            logging.debug('Batch classification time: {}s'.format(t2-t1))
 
         # Save results to geojson
-        with open('/chips/ref.geojson') as f:
+        with open(join(self.ms_image_path, 'candidates.geojson')) as f:
             data = geojson.load(f)
 
+        # Save all boats to output geojson
         boat_feats = []
-
         for feat in data['features']:
             try:
-                res = results[str(feat['properties']['idx'])]
-                feat['properties']['tank_certainty'] = np.round(res[1], 10).astype(float)
+                res = boat[str(feat['properties']['idx'])]
+                feat['properties']['boat_certainty'] = np.round(res[1], 10).astype(float)
                 boat_feats.append(feat)
             except (KeyError):
-                next
+                continue
 
         data['features'] = boat_feats
 
-        with open(os.path.join(self.output_dir, 'results.geojson'), 'wb') as f:
+        with open(join(self.output_dir, 'results.geojson'), 'wb') as f:
             geojson.dump(data, f)
 
 
@@ -397,10 +366,6 @@ class BoatDetector(GbdxTaskInterface):
         # Format vector file and chip from pan image
         print 'Chipping...'
         self.extract_chips()
-        self.get_ref_geojson()
-
-        # Format and pad chips
-        self.prep_chips()
 
         # Deploy model
         print 'Deploying model...'
@@ -410,3 +375,4 @@ class BoatDetector(GbdxTaskInterface):
 if __name__ == '__main__':
     with BoatDetector() as task:
         task.invoke()
+

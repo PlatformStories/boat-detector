@@ -1,6 +1,6 @@
 {
     "name": "boat-detector",
-    "version": "0.0.5",
+    "version": "0.1.0",
     "description": "A GBDX task that detects boats. Boats include ships, vessels, speed boats, barges.",
     "properties": {
         "isPublic": true,
@@ -16,7 +16,7 @@
         {
             "name": "ps_image",
             "type": "directory",
-            "description": "Contains the pan-sharpened counterpart of the multispectal image in geotiff format and EPSG:4326 projection. This directory should contain only one image otherwise one is selected arbitrarily.",
+            "description": "Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily.",
             "required": true
         },
         {
@@ -26,15 +26,15 @@
             "required": false
         },
         {
-            "name": "threshold",
-            "type": "string",
-            "description": "Decision threshold. Defaults to 0.5.",
-            "required": false
-        },
-        {
             "name": "with_mask",
             "type": "string",
             "description": "If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true.",
+            "required": false
+        },
+        {
+            "name": "threshold",
+            "type": "string",
+            "description": "Decision threshold. Defaults to 0.657 (optimal threshold for the given model).",
             "required": false
         },
         {
@@ -80,10 +80,11 @@
             "type": "DOCKER",
             "properties": {
                 "image": "tdgp/boat-detector",
-                "domain": "nvidiagpu"
+                "domain": "nvidiap2"
             },
             "command": "python /boat-detector.py",
             "isPublic": true
         }
     ]
 }
+
