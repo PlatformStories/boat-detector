@@ -1,7 +1,7 @@
 {
     "name": "boat-detector-dev",
-    "version": "0.0.2",
-    "description": "A GBDX task that detects boats. Boats include ships, vessels, speed boats, barges.",
+    "version": "0.0.3",
+    "description": "A GBDX task that detects boats at sea or at the dock. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).",
     "properties": {
         "isPublic": true,
         "timeout": 18000

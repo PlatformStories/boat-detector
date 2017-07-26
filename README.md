@@ -103,7 +103,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-**v0.0.2, 7-26-2017**
+**v0.0.3, 7-26-2017**
 
 ### Training
 
