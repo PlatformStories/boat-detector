@@ -39,7 +39,7 @@ This is a sample workflow to detect boats in the New York area. The required inp
     random_str = str(uuid.uuid4())
     output_location = join('platform-stories/trial-runs', random_str)
 
-    wf.savedata(bd.outputs.results, join(output_location, 'boat_detections'))
+    wf.savedata(bd.outputs.detections, join(output_location, 'boat_detections'))
     ```
 
 5. Execute the workflow:  
@@ -103,7 +103,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-**v0.0.3, 7-26-2017**
+**v0.0.6, 7-26-2017**
 
 ### Training
 
@@ -126,7 +126,7 @@ Then build the image locally. Building requires input environment variables for 
 ```bash
 cd boat-detector
 docker build --build-arg PROTOUSER=<GitHub username> \
-    --build-arg PROTOPASSWORD=<GitHub pawwsord> \
+    --build-arg PROTOPASSWORD=<GitHub password> \
     --build-arg AWS_ACCESS_KEY_ID=<AWS access key> \
     --build-arg AWS_SECRET_ACCESS_KEY=<AWS secret key> \
     --build-arg AWS_SESSION_TOKEN=<AWS session token> \
