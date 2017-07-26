@@ -59,7 +59,7 @@ def resize_image(path, side_dim):
 
 
 def get_utm_info(image):
-    'Return UTM info of image. Image must be in UTM projection.''
+    'Return UTM info of image. Image must be in UTM projection.'
     sample = gdal.Open(image)
     projection_info = sample.GetProjectionRef()
     where = projection_info.find('UTM zone') + 9
@@ -70,7 +70,7 @@ def get_utm_info(image):
 
 
 class BoatDetector(GbdxTaskInterface):
-    'Deploys a trained CNN classifier on protogen-generated candidate regions to determine which ones contain boats.''
+    'Deploys a trained CNN classifier on protogen-generated candidate regions to determine which ones contain boats.'
 
     def __init__(self):
 
