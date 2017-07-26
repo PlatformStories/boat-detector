@@ -1,6 +1,6 @@
 {
     "name": "boat-detector-dev",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A GBDX task that detects boats. Boats include ships, vessels, speed boats, barges.",
     "properties": {
         "isPublic": true,
@@ -22,7 +22,7 @@
         {
             "name": "mask",
             "type": "directory",
-            "description": "Contains a binary image of the same spatial dimensions as the input images where intensity 255 corresponds to water and intensity 0 to background.",
+            "description": "Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background.",
             "required": false
         },
         {
@@ -34,7 +34,7 @@
         {
             "name": "threshold",
             "type": "string",
-            "description": "Decision threshold. Defaults to 0.657 (optimal threshold for the given model).",
+            "description": "Decision threshold. Defaults to 0.657.",
             "required": false
         },
         {
@@ -70,9 +70,14 @@
     ],
     "outputPortDescriptors": [
         {
-            "name": "results",
+            "name": "detections",
             "type": "directory",
             "description": "Contains geojson file with detection bounding boxes."
+        },
+        {
+            "name": "candidates",
+            "type": "directory",
+            "description": "Contains geojson file with candidate bounding boxes."
         }
     ],
     "containerDescriptors": [
@@ -87,4 +92,3 @@
         }
     ]
 }
-

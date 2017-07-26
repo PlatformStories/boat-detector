@@ -15,12 +15,12 @@ from os.path import join
 
 
 def preprocess(data):
-    """
+    '''
     Args: data: list of images
           intensities: list of R,G,B intensities to subtract from RGB bands
     Returns: data
           data: list of mean-adjusted & RGB -> BGR transformed images
-    """
+    '''
     # RGB -> BGR:
     data[:, :, :, 0] -= 104
     data[:, :, :, 1] -= 114
@@ -28,14 +28,14 @@ def preprocess(data):
     return data
 
 def resize_image(path, side_dim):
-    """
+    '''
     Args: path [string], rows, cols [int]
         path: path of an image; side_dim - columns and rows
         of resized image
     Returns: resized [numpy array rows x columns x 3]
         resized image
 	(if the image is invalid, it returns a rowsxcols array of zeros)
-    """
+    '''
     img = cv2.imread(path)
     try:
         x, y, _ = img.shape
@@ -59,7 +59,7 @@ def resize_image(path, side_dim):
 
 
 def get_utm_info(image):
-    "Return UTM info of image. Image must be in UTM projection."
+    'Return UTM info of image. Image must be in UTM projection.''
     sample = gdal.Open(image)
     projection_info = sample.GetProjectionRef()
     where = projection_info.find('UTM zone') + 9
@@ -70,9 +70,7 @@ def get_utm_info(image):
 
 
 class BoatDetector(GbdxTaskInterface):
-    '''
-    Deploys a trained CNN classifier on protogen-generated candidate regions to determine which ones contain boats.
-    '''
+    'Deploys a trained CNN classifier on protogen-generated candidate regions to determine which ones contain boats.''
 
     def __init__(self):
 
@@ -107,11 +105,13 @@ class BoatDetector(GbdxTaskInterface):
         else:
             self.with_mask = False
 
-        # Create output directory
-        self.output_dir = self.get_output_data_port('results')
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-
+        # Create output directories
+        self.detections_dir = self.get_output_data_port('detections')
+        if not os.path.exists(self.detections_dir):
+            os.makedirs(self.detections_dir)
+        self.candidates_dir = self.get_output_data_port('candidates')
+        if not os.path.exists(self.candidates_dir):
+            os.makedirs(self.candidates_dir)
 
     def extract_candidates(self):
         '''
@@ -166,7 +166,7 @@ class BoatDetector(GbdxTaskInterface):
             mask = uff.output
 
             # Copy mask to output folder (for debugging purposes)
-            shutil.copy(mask, self.output_dir)
+            shutil.copy(mask, self.detections_dir)
 
         # If mask is provided and with_mask is true then use the provided one
         elif self.mask and self.with_mask:
@@ -262,16 +262,16 @@ class BoatDetector(GbdxTaskInterface):
         vbb.image_config.bands = [1]
         vbb.execute()
 
-        # Rename geojson and copy it to output folder (for debugging purposes)
+        # Rename geojson and copy it to candidates folder
         shutil.move(vbb.output, 'candidates.geojson')
-        shutil.copy('candidates.geojson', self.output_dir)
+        shutil.copy('candidates.geojson', self.candidates_dir)
 
         # Return to home dir
         os.chdir('/')
 
 
     def extract_chips(self):
-        '''Extract chips from pan-sharpened image.'''
+        'Extract chips from pan-sharpened image.'
 
         # Get UTM info for conversion
         utm_num, utm_let = get_utm_info(join(self.ps_image_path, self.ps_image))
@@ -313,7 +313,7 @@ class BoatDetector(GbdxTaskInterface):
 
 
     def deploy_model(self):
-        '''Deploy model.'''
+        'Deploy model.'
         model = load_model('/model.h5')
         boats = {}
         chips = glob(join('chips', '*.tif'))
@@ -356,7 +356,7 @@ class BoatDetector(GbdxTaskInterface):
 
         data['features'] = boat_feats
 
-        with open(join(self.output_dir, 'results.geojson'), 'wb') as f:
+        with open(join(self.detections_dir, 'detections.geojson'), 'wb') as f:
             geojson.dump(data, f)
 
 
@@ -378,4 +378,3 @@ class BoatDetector(GbdxTaskInterface):
 if __name__ == '__main__':
     with BoatDetector() as task:
         task.invoke()
-
