@@ -113,6 +113,9 @@ class BoatDetector(GbdxTaskInterface):
         self.candidates_dir = self.get_output_data_port('candidates')
         if not os.path.exists(self.candidates_dir):
             os.makedirs(self.candidates_dir)
+        self.output_mask_dir = self.get_output_data_port('mask')
+        if not os.path.exists(self.output_mask_dir):
+            os.makedirs(self.output_mask_dir)
 
     def extract_candidates(self):
         '''
@@ -164,10 +167,8 @@ class BoatDetector(GbdxTaskInterface):
             uff.image_config.bands = [1]
             uff.execute()
 
-            mask = uff.output
-
-            # Copy mask to output folder (for debugging purposes)
-            shutil.copy(mask, self.detections_dir)
+            # Copy mask to output folder
+            shutil.copy(uff.output, join(self.output_mask_dir, 'mask.tif'))
 
         # If mask is provided and with_mask is true then use the provided one
         elif self.mask and self.with_mask:
@@ -193,8 +194,8 @@ class BoatDetector(GbdxTaskInterface):
             msd.morphology.structural.radius1 = self.dilation
             if self.mask:
                 msd.image = self.mask
-            else:
-                msd.image = mask
+    	    else:
+                msd.image = uff.output
             msd.image_config.bands = [1]
             msd.execute()
 
