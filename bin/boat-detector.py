@@ -190,7 +190,10 @@ class BoatDetector(GbdxTaskInterface):
             msd.morphology.structural.operator = 'dilation'
             msd.morphology.structural.structuring_element = 'disk'
             msd.morphology.structural.radius1 = self.dilation
-            msd.image = self.mask
+            if self.mask:
+		msd.image = self.mask
+	    else:
+		msd.image = mask
             msd.image_config.bands = [1]
             msd.execute()
 
