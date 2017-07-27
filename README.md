@@ -135,10 +135,10 @@ docker build --build-arg PROTOUSER=<GitHub username> \
 
 ### Try out locally
 
-Create a container in interactive mode and mount the sample input under `/mnt/work/input/`:
+You need a GPU and [nvidia-docker](https://github.com/NVIDIA/nvidia-docker). Create a container in interactive mode and mount the sample input under `/mnt/work/input/`:
 
 ```bash
-docker run -v full/path/to/sample-input:/mnt/work/input -it boat-detector
+nvidia-docker run -v full/path/to/sample-input:/mnt/work/input -it boat-detector
 ```
 
 Then, within the container:
