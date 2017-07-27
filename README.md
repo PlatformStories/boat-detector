@@ -107,7 +107,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ### Training
 
-Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The architecture of the neural network is VGG-16. Training consisted of training the final convolutional layers of VGG-16 pre-trained on ImageNet.
+Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The architecture of the neural network is VGG-16. Training consisted of training the final block of convolutional layers and the final dense layers of VGG-16 pre-trained on ImageNet.
 
 ## Development
 
