@@ -2,4 +2,5 @@ images/
 sample-input/
 ship_detector.json
 sample-input-large/
+sample-input-mask/
 README.md
