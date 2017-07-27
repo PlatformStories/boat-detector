@@ -29,7 +29,6 @@ ARG AWS_SESSION_TOKEN
 
 RUN git clone https://${PROTOUSER}:${PROTOPASSWORD}@github.com/digitalglobe/protogen && \
     cd protogen && \
-    git checkout dev && \
     python setup.py install && \
     cd ..
 
