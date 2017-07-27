@@ -90,7 +90,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 |---|---|---|
 | detections | directory | Contains geojson file with detection bounding boxes. |
 | candidates | directory | Contains geojson file with candidate bounding boxes. |
-
+| mask | directory | Contains water mask if a water_mask is created, i.e., water_mask is true and no water mask is provided as input. |
 
 ## Comments/Recommendations
 
@@ -103,7 +103,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-**GBDX v0.0.7, 7-27-2017**
+**7-27-2017, GBDX version 0.0.8**
 
 ### Training
 
