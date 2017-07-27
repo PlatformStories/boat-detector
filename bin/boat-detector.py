@@ -17,14 +17,15 @@ from os.path import join
 def preprocess(data):
     '''
     Args: data: list of images
-          intensities: list of R,G,B intensities to subtract from RGB bands
     Returns: data
           data: list of mean-adjusted & RGB -> BGR transformed images
     '''
-    # RGB -> BGR:
-    data[:, :, :, 0] -= 104
-    data[:, :, :, 1] -= 114
-    data[:, :, :, 2] -= 124
+    # BGR --> RGB
+    data = data[:,:,:,[2,1,0]]
+
+    data[:, :, :, 0] -= 103.939
+    data[:, :, :, 1] -= 116.779
+    data[:, :, :, 2] -= 123.68
     return data
 
 def resize_image(path, side_dim):
@@ -191,9 +192,9 @@ class BoatDetector(GbdxTaskInterface):
             msd.morphology.structural.structuring_element = 'disk'
             msd.morphology.structural.radius1 = self.dilation
             if self.mask:
-		msd.image = self.mask
-	    else:
-		msd.image = mask
+                msd.image = self.mask
+            else:
+                msd.image = mask
             msd.image_config.bands = [1]
             msd.execute()
 
