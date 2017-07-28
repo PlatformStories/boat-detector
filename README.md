@@ -75,7 +75,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 | ms_image | directory | Contains a 4/8-band atmospherically multispectral image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
 | ps_image | directory | Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
 | mask | Directory | Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background. | False |
-| threshold | string | Decision threshold. Defaults to 0.5. | False |
+| threshold | string | Decision threshold. Defaults to 0.657. | False |
 | with_mask | String | If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true. | False |
 | dilation | String | Radius of dilation disk in m. Use this to dilate the water mask in order to remove holes in the water and invade the coastline. Default is 100. | False |
 | min_linearity | String | The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 2. | False |
@@ -103,7 +103,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-**7-27-2017, GBDX version 0.0.8**
+**7-28-2017, GBDX version 0.0.8**
 
 ### Training
 
