@@ -95,7 +95,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 ## Comments/Recommendations
 
 + The required projection for the multispectral image is UTM. The reason for this is that candidate locations are derived based on size and elongation.
-+ Try to provide an accurate water mask as input when the area of interest is a port. The built-in algorithm to derive the water mask is very simple. It relies on the normalized difference water index between the first band and the furthest NIR band. This can work well in some cases, e.g., calm blue water, but could fail miserably in choppy or green water, or when shadows from buildings are cast onto the water (in which case the water mask leaks onto the land). If the area of interest is the open sea then a water mask is not required.
++ If the area of interest includes land, e.g., in the case of a port, then it is recommended to set with_mask=True. It is preferable to provide an accurate water mask as input if that is available. The built-in algorithm to derive the water mask is generally reliable but can fail in certain cases such as choppy or green water, or when shadows from buildings are cast onto the water (in which case the water mask leaks onto the land). If you set with_mask=False, then make sure to crop out as much land as possible from the input images; if you don't do that you will get numerous false detections on land.
 + Boats that are attached to each other will most likely be lumped into one detection. This is particularly the case for small boats in marinas.
 + The wake of a boat is considered part of the boat.
 + The parameters min_linearity, max_linearity and min_area, max_area refer to the linearity and size limits of the features detected by the algorithm. A boat might be attached to an adjacent object or to its wake. Allow for some margin when setting these parameters. Keep in mind that the classifier has been trained on candidates derived with the default parameters.
@@ -107,7 +107,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ### Training
 
-Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The architecture of the neural network is VGG-16. Training consisted of training the final block of convolutional layers and the final dense layers of VGG-16 pre-trained on ImageNet.
+Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The imagery was atmospherically compensated and pan-sharpened using base-layer matching ([example](https://github.com/PlatformStories/notebooks/blob/master/Order%20and%20preprocess%20imagery.ipynb)). The architecture of the neural network is ResNet.
 
 ## Development
 
