@@ -94,20 +94,25 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Comments/Recommendations
 
-+ The required projection for the multispectral image is UTM. The reason for this is that candidate locations are derived based on size and elongation.
-+ If the area of interest includes land, e.g., in the case of a port, then it is recommended to set with_mask=True. It is preferable to provide an accurate water mask as input if that is available. The built-in algorithm to derive the water mask is generally reliable but can fail in certain cases such as choppy or green water, or when shadows from buildings are cast onto the water (in which case the water mask leaks onto the land). If you set with_mask=False, then make sure to crop out as much land as possible from the input images; if you don't do that you will get numerous false detections on land.
++ If precision is more important than recall then increase the threshold, and vice versa.
++ The required projection for the input images is UTM, due to the fact that candidate locations are derived based on geometrical properties such as size and elongation.
++ If the area of interest includes land, e.g., in the case of a port, then it is recommended to set with_mask=True. It is preferable to provide an accurate water mask as input if that is available. The built-in algorithm to derive the water mask is generally reliable but can fail in certain cases such as when shadows from buildings are cast onto the water (in which case the water mask leaks onto the land). If you set with_mask=False, then make sure to crop out as much land as possible from the input images; if you don't do that you will get numerous false detections on land.
 + Boats that are attached to each other will most likely be lumped into one detection. This is particularly the case for small boats in marinas.
-+ The wake of a boat is considered part of the boat.
++ The wake of a boat will generally be included in the detection bounding box.
 + The parameters min_linearity, max_linearity and min_area, max_area refer to the linearity and size limits of the features detected by the algorithm. A boat might be attached to an adjacent object or to its wake. Allow for some margin when setting these parameters. Keep in mind that the classifier has been trained on candidates derived with the default parameters.
 + The maximum acceptable size of the input multispectral image depends on the available memory. We have run the algorithm on entire WV3 strips with no problems using an AWS r4.2xlarge instance.
 
 ## Changelog
 
-**7-28-2017, GBDX version 0.0.8**
+### 7-28-2017, GBDX version 0.0.8
 
-### Training
+#### Training
 
 Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The imagery was atmospherically compensated and pan-sharpened using base-layer matching ([example](https://github.com/PlatformStories/notebooks/blob/master/Order%20and%20preprocess%20imagery.ipynb)). The architecture of the neural network is ResNet.
+
+#### Runtime
+
+Approximately 0.7 sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiap2 domain. This figure is image and location dependent, and assumes an accurate water mask is provided as input.
 
 ## Development
 
