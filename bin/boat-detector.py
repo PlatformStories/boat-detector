@@ -21,7 +21,7 @@ def preprocess(data):
           data: list of mean-adjusted & RGB -> BGR transformed images
     '''
     # BGR --> RGB
-    data = data[:,:,:,[2,1,0]]
+    data = data[:,:,:,[2,1,0]].astype('float32')
 
     data[:, :, :, 0] -= 103.939
     data[:, :, :, 1] -= 116.779
@@ -339,8 +339,8 @@ class BoatDetector(GbdxTaskInterface):
 
             # create dict of boat fids and certainties
             for ix, pred in enumerate(yprob):
-                if pred[1] > self.threshold:
-                    boats[fids[ix]] = pred[1]
+                if pred[0] > self.threshold:
+                    boats[fids[ix]] = pred[0]
 
             t2 = time.time()
             print 'Batch classification time: {}s'.format(t2-t1)
