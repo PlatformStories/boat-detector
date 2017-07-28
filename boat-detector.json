@@ -82,6 +82,7 @@
         {   "name": "mask",
             "type": "directory",
             "description": "Contains water mask if a water_mask is created, i.e., water_mask is true and no water mask is provided as input."
+        }
     ],
     "containerDescriptors": [
         {
