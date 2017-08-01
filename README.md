@@ -104,7 +104,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-### 7-28-2017, GBDX version 0.0.8
+### 8-1-2017, GBDX version 0.0.9
 
 #### Training
 

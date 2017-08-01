@@ -136,39 +136,15 @@ class BoatDetector(GbdxTaskInterface):
             print 'Creating water mask'
             make_mask = True
 
-            # Compute normalized difference water index
-            rbr = protogen.Interface('radex_scalar', 'band_ratio')
-            rbr.radex_scalar.band_ratio.index_formula = 'IDX1'
-            rbr.radex_scalar.band_ratio.output_datatype = 'UINT8'
-            rbr.image = self.ms_image
-            rbr.image_config.bands = [1, no_bands]
-            rbr.execute()
-
-            # Create mask
-            mot = protogen.Interface('morphology', 'threshold')
-            mot.morphology.threshold.algorithm = 'brute_force'
-            mot.morphology.threshold.threshold = 128
-            mot.morphology.threshold.new_min_value = 0
-            mot.morphology.threshold.new_max_value = 255
-            mot.image = rbr.output
-            mot.image_config.bands = [1]
-            mot.execute()
-
-            # Remove holes (due to water bodies or shadows) from land with union find size filtering
-            uff = protogen.Interface('union_find', 'filter')
-            uff.unionfind.filter.labels_type = 'binary'
-            uff.unionfind.filter.object_representation = 'coverage'
-            uff.unionfind.filter.spatial_connectivity = 4
-            uff.athos.dimensions = 2
-            uff.athos.tree_type = 'union_find'
-            uff.athos.area.usage = ['remove if less']
-            uff.athos.area.min = [250000]
-            uff.image = mot.output
-            uff.image_config.bands = [1]
-            uff.execute()
+            lm = protogen.Interface('lulc', 'masks')
+            lm.lulc.masks.type = 'single'
+            lm.lulc.masks.switch_water = True 
+            lm.image = self.ms_image
+            lm.image_config.bands = range(1, no_bands+1)
+            lm.execute()
 
             # Copy mask to output folder
-            shutil.copy(uff.output, join(self.output_mask_dir, 'mask.tif'))
+            shutil.copy(lm.output, join(self.output_mask_dir, 'mask.tif'))
 
         # If mask is provided and with_mask is true then use the provided one
         elif self.mask and self.with_mask:
@@ -195,7 +171,7 @@ class BoatDetector(GbdxTaskInterface):
             if self.mask:
                 msd.image = self.mask
     	    else:
-                msd.image = uff.output
+                msd.image = lm.output
             msd.image_config.bands = [1]
             msd.execute()
 
