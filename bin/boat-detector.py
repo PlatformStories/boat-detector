@@ -94,7 +94,7 @@ class BoatDetector(GbdxTaskInterface):
 
         # String inputs
         self.threshold = float(self.get_input_string_port('threshold', '0.657'))
-        self.with_mask = self.get_input_string_port('with_mask', 'true')
+        self.with_mask = self.get_input_string_port('with_mask', 'false')
         self.dilation = int(self.get_input_string_port('dilation', '100'))
         self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
@@ -154,7 +154,7 @@ class BoatDetector(GbdxTaskInterface):
             mot.image_config.bands = [1]
             mot.execute()
 
-            # Remove holes (due to water bodies or shadows) from land with union find size filtering
+            # Remove small bodies in mask (could be land water bodies or shadows) with union find size filtering
             uff = protogen.Interface('union_find', 'filter')
             uff.unionfind.filter.labels_type = 'binary'
             uff.unionfind.filter.object_representation = 'coverage'
@@ -162,7 +162,7 @@ class BoatDetector(GbdxTaskInterface):
             uff.athos.dimensions = 2
             uff.athos.tree_type = 'union_find'
             uff.athos.area.usage = ['remove if less']
-            uff.athos.area.min = [250000]
+            uff.athos.area.min = [10000]
             uff.image = mot.output
             uff.image_config.bands = [1]
             uff.execute()

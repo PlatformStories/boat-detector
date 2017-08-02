@@ -1,6 +1,6 @@
 {
     "name": "boat-detector",
-    "version": "0.0.8",
+    "version": "0.1.0",
     "description": "A GBDX task that detects boats at sea or at the dock. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).",
     "properties": {
         "isPublic": true,
@@ -28,7 +28,7 @@
         {
             "name": "with_mask",
             "type": "string",
-            "description": "If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true.",
+            "description": "If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is false.",
             "required": false
         },
         {
