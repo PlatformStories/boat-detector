@@ -162,7 +162,7 @@ class BoatDetector(GbdxTaskInterface):
             uff.athos.dimensions = 2
             uff.athos.tree_type = 'union_find'
             uff.athos.area.usage = ['remove if less']
-            uff.athos.area.min = [10000]
+            uff.athos.area.min = [250000]
             uff.image = mot.output
             uff.image_config.bands = [1]
             uff.execute()
