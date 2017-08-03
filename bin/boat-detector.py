@@ -94,7 +94,7 @@ class BoatDetector(GbdxTaskInterface):
 
         # String inputs
         self.threshold = float(self.get_input_string_port('threshold', '0.657'))
-        self.with_mask = self.get_input_string_port('with_mask', 'false')
+        self.with_mask = self.get_input_string_port('with_mask', 'true')
         self.dilation = int(self.get_input_string_port('dilation', '100'))
         self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
