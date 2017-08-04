@@ -95,7 +95,7 @@ class BoatDetector(GbdxTaskInterface):
         # String inputs
         self.threshold = float(self.get_input_string_port('threshold', '0.657'))
         self.with_mask = self.get_input_string_port('with_mask', 'true')
-        self.dilation = int(self.get_input_string_port('dilation', '100'))
+        self.closing = int(self.get_input_string_port('closing', '40'))
         self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
         self.min_size = int(self.get_input_string_port('min_size', '500'))
@@ -186,10 +186,10 @@ class BoatDetector(GbdxTaskInterface):
 
         if self.with_mask:
 
-            # Apply a dilation to remove holes in the water mask (from boats and other anomalies) and invade the coastline
-            print 'Dilate water mask'
+            # Apply a closing to remove holes in the water mask (from boats and other anomalies)
+            print 'Closing water mask'
             msd = protogen.Interface('morphology', 'structural')
-            msd.morphology.structural.operator = 'dilation'
+            msd.morphology.structural.operator = 'closing'
             msd.morphology.structural.structuring_element = 'disk'
             msd.morphology.structural.radius1 = self.dilation
             if self.mask:
