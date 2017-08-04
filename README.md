@@ -1,6 +1,6 @@
 # boat-detector
 
-A GBDX task that detects boats at sea or at the dock. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).
+A GBDX task that detects boats. Boats include ships, vessels, speed boats, barges and cranes (self-propelled or not).
 
 The inputs to the task are a 4/8-band multispectral image, its pan-sharpened counterpart and, optionally, a water mask. The output is a geojson file with the detection bounding boxes.
 
@@ -104,7 +104,9 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-### 8-1-2017, GBDX version 0.1.2
+### 8-1-2017, GBDX version 0.1.3
+
+Only detects boats at sea (not at the dock).
 
 #### Training
 
