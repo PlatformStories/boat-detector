@@ -96,9 +96,9 @@ class BoatDetector(GbdxTaskInterface):
         self.threshold = float(self.get_input_string_port('threshold', '0.657'))
         self.with_mask = self.get_input_string_port('with_mask', 'true')
         self.closing = int(self.get_input_string_port('closing', '40'))
-        self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
+        self.min_linearity = float(self.get_input_string_port('min_linearity', '1.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
-        self.min_size = int(self.get_input_string_port('min_size', '500'))
+        self.min_size = int(self.get_input_string_port('min_size', '50'))
         self.max_size = int(self.get_input_string_port('max_size', '6000'))
 
         if self.with_mask in ['True', 'true', 't']:
@@ -191,7 +191,7 @@ class BoatDetector(GbdxTaskInterface):
             msd = protogen.Interface('morphology', 'structural')
             msd.morphology.structural.operator = 'closing'
             msd.morphology.structural.structuring_element = 'disk'
-            msd.morphology.structural.radius1 = self.dilation
+            msd.morphology.structural.radius1 = self.closing
             if self.mask:
                 msd.image = self.mask
     	    else:

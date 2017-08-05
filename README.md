@@ -77,10 +77,10 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 | mask | Directory | Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background. | False |
 | threshold | string | Decision threshold. Defaults to 0.657. | False |
 | with_mask | String | If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true. | False |
-| dilation | String | Radius of dilation disk in m. Use this to dilate the water mask in order to remove holes in the water and invade the coastline. Default is 100. | False |
-| min_linearity | String | The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 2. | False |
+| closing | String | Radius of closing disk in m. Use this to close holes in the water mask. Default is 40. | False |
+| min_linearity | String | The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 1. | False |
 | max_linearity | String | The maximum allowable ratio of the major and minor axes lengths of a detected feature. Default is 8. | False |
-| min_size | String | Minimum boat candidate size in m2. Default is 500. | False |
+| min_size | String | Minimum boat candidate size in m2. Default is 50. | False |
 | max_size | String | Maximum boat candidate size in m2. Default is 6000. | False |
 
 
@@ -104,7 +104,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-### 8-1-2017, GBDX version 0.1.3
+### 8-1-2017, GBDX version 0.1.4
 
 Only detects boats at sea (not at the dock).
 
