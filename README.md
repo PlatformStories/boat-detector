@@ -104,7 +104,7 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 
 ## Changelog
 
-### 8-1-2017, GBDX version 0.1.4
+### 8-1-2017, GBDX version 0.1.5
 
 Only detects boats at sea (not at the dock).
 
