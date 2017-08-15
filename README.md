@@ -92,6 +92,7 @@ GBDX input ports can only be of "directory" or "string" type. Booleans, integers
 ## Comments/Recommendations
 
 + If precision is more important than recall then increase the threshold, and vice versa.
++ Increasing the size or linearity range will increase the run time, as more candidates are retrieved.
 + The required projection for the input images is UTM, due to the fact that candidate locations are derived based on geometrical properties such as size and elongation.
 + Boats that are attached to each other will most likely be lumped into one detection.
 + The wake of a boat will generally be included in the detection bounding box.
@@ -100,7 +101,7 @@ GBDX input ports can only be of "directory" or "string" type. Booleans, integers
 
 ## Changelog
 
-### 8-14-2017, GBDX version 0.1.6
+### Current version
 
 #### Training
 
@@ -108,7 +109,7 @@ Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamb
 
 #### Runtime
 
-Approximately ... sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiagpu domain. This figure is image and location dependent.
+Approximately 0.8sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiag2 domain. This figure is image, location and input parameter dependent.
 
 ## Development
 
