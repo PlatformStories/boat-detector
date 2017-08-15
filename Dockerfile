@@ -32,7 +32,8 @@ RUN git clone https://${PROTOUSER}:${PROTOPASSWORD}@github.com/digitalglobe/prot
     python setup.py install && \
     cd ..
 
-RUN aws s3 cp s3://gbd-customer-data/32cbab7a-4307-40c8-bb31-e2de32f940c2/platform-stories/boats/models/2017-08-04/ResNet50_md_b192l60_f0.h5 /model.h5
+RUN aws s3 cp s3://gbd-customer-data/32cbab7a-4307-40c8-bb31-e2de32f940c2/platform-stories/boat-detector/models/7-20-2017/model.h5 /model.h5
+RUN aws s3 cp --recursive s3://gbd-customer-data/32cbab7a-4307-40c8-bb31-e2de32f940c2/platform-stories/boat-detector/water-polygons /water-polygons
 
 COPY ./bin /
 COPY keras.json /root/.keras/keras.json

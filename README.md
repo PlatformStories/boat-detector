@@ -1,8 +1,8 @@
 # boat-detector
 
-A GBDX task that detects boats. Boats include ships, vessels, speed boats, barges and cranes (self-propelled or not).
+A GBDX task that detects boats at sea. Boats include ships, vessels, speed boats, barges and cranes (self-propelled or not).
 
-The inputs to the task are a 4/8-band multispectral image, its pan-sharpened counterpart and, optionally, a water mask. The output is a geojson file with the detection bounding boxes.
+The inputs to the task are a 4/8-band multispectral image and its pan-sharpened counterpart. The output is a geojson file with the detection bounding boxes.
 
 <img src='images/boat-detector.png' width=700>
 
@@ -29,7 +29,6 @@ This is a sample workflow to detect boats in the New York area. The required inp
     bd = gbdx.Task('boat-detector-dev')
     bd.inputs.ps_image = join(input_location, 'ps_image')
     bd.inputs.ms_image = join(input_location, 'ms_image')
-    bd.inputs.mask = join(input_location, 'mask')
     ```
 
 3. Create a workflow instance and specify where to save the output:  
@@ -58,30 +57,28 @@ This is a sample workflow to detect boats in the New York area. The required inp
 
 The task does the following:
 
-+ If a water mask is not provided, it computes one from the multispectral image using the normalized difference water index.
++ If a water mask is not provided as input, it computes one using [OSM coastline vectors](http://openstreetmapdata.com/data/water-polygons). If a water mask is provided as input, it uses that water mask. An erosion is applied to the water mask in order to distance the search area from the coastline.
 + Computes a dissimilarity map between adjacent pixels of the multispectral image in order to highlight material differences.
-+ Masks the dissimilarity map with the water mask then detects elongated features in the masked dissimilarity map using max-tree filtering to produce a set of candidate bounding boxes.
++ Masks the dissimilarity map with the water mask then detects elongated features within a given size range in the masked dissimilarity map using max-tree filtering to produce a set of candidate bounding boxes.
 + Chips out the candidates from the pan-sharpened image and feeds them to a Keras model which classifies each candidate as 'Boat' and 'Other'.
 
-With regards to the training of the neural network, the training set is created by generating candidate boxes from different locations using the procedure described previously and manually labeling each candidate as 'Boat' and 'Other'. A candidate is labeled as 'Boat' if there is part of a boat or one or more boats which occupy a portion of the box.
 
 
 ## Inputs
 
-GBDX input ports can only be of "Directory" or "String" type. Booleans, integers and floats are passed to the task as strings, e.g., "True", "10", "0.001".
+GBDX input ports can only be of "directory" or "string" type. Booleans, integers and floats are passed to the task as strings, e.g., "True", "10", "0.001".
 
 | Name  | Type | Description | Required |
 |---|---|---|---|
 | ms_image | directory | Contains a 4/8-band atmospherically multispectral image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
 | ps_image | directory | Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
-| mask | Directory | Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background. | False |
-| threshold | string | Decision threshold. Defaults to 0.657. | False |
-| with_mask | String | If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true. | False |
-| closing | String | Radius of closing disk in m. Use this to close holes in the water mask. Default is 40. | False |
-| min_linearity | String | The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 1. | False |
-| max_linearity | String | The maximum allowable ratio of the major and minor axes lengths of a detected feature. Default is 8. | False |
-| min_size | String | Minimum boat candidate size in m2. Default is 50. | False |
-| max_size | String | Maximum boat candidate size in m2. Default is 6000. | False |
+| mask | directory | Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background. | False |
+| threshold | string | Decision threshold. Defaults to 0.5. | False |
+| erosion | string | Radius of erosion disk in m. Use this to erode the water mask in order to distance the search area from the coastline. Default is 100. | False |
+| min_linearity | string | The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 2. | False |
+| max_linearity | string | The maximum allowable ratio of the major and minor axes lengths of a detected feature. Default is 8. | False |
+| min_size | string | Minimum boat candidate size in m2. Default is 500. | False |
+| max_size | string | Maximum boat candidate size in m2. Default is 6000. | False |
 
 
 ## Outputs
@@ -90,23 +87,20 @@ GBDX input ports can only be of "Directory" or "String" type. Booleans, integers
 |---|---|---|
 | detections | directory | Contains geojson file with detection bounding boxes. |
 | candidates | directory | Contains geojson file with candidate bounding boxes. |
-| mask | directory | Contains water mask if a water_mask is created, i.e., water_mask is true and no water mask is provided as input. |
+| mask | directory | Contains water mask if a water mask is created. |
 
 ## Comments/Recommendations
 
 + If precision is more important than recall then increase the threshold, and vice versa.
 + The required projection for the input images is UTM, due to the fact that candidate locations are derived based on geometrical properties such as size and elongation.
-+ If the area of interest includes land, e.g., in the case of a port, then it is recommended to set with_mask=True. It is preferable to provide an accurate water mask as input if that is available. The built-in algorithm to derive the water mask is generally reliable but can fail in certain cases such as when shadows from buildings are cast onto the water (in which case the water mask leaks onto the land). If you set with_mask=False, then make sure to crop out as much land as possible from the input images; if you don't do that you will get numerous false detections on land.
-+ Boats that are attached to each other will most likely be lumped into one detection. This is particularly the case for small boats in marinas.
++ Boats that are attached to each other will most likely be lumped into one detection.
 + The wake of a boat will generally be included in the detection bounding box.
 + The parameters min_linearity, max_linearity and min_area, max_area refer to the linearity and size limits of the features detected by the algorithm. A boat might be attached to an adjacent object or to its wake. Allow for some margin when setting these parameters. Keep in mind that the classifier has been trained on candidates derived with the default parameters.
 + The maximum acceptable size of the input multispectral image depends on the available memory. We have run the algorithm on entire WV3 strips with no problems using an AWS r4.2xlarge instance.
 
 ## Changelog
 
-### 8-1-2017, GBDX version 0.1.5
-
-Only detects boats at sea (not at the dock).
+### 8-14-2017, GBDX version 0.1.6
 
 #### Training
 
@@ -114,7 +108,7 @@ Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamb
 
 #### Runtime
 
-Approximately 0.7 sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiap2 domain. This figure is image and location dependent, and assumes an accurate water mask is provided as input.
+Approximately ... sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiagpu domain. This figure is image and location dependent.
 
 ## Development
 

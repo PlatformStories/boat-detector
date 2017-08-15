@@ -7,7 +7,7 @@ import cv2
 import subprocess
 
 from glob import glob
-from osgeo import gdal
+from osgeo import gdal, osr
 from scipy.misc import imresize
 from keras.models import load_model
 from gbdx_task_interface import GbdxTaskInterface
@@ -60,14 +60,15 @@ def resize_image(path, side_dim):
 
 
 def get_utm_info(image):
-    'Return UTM info of image. Image must be in UTM projection.'
+    'Return UTM number and proj4 format of utm projection. Image must be in UTM projection.'
     sample = gdal.Open(image)
-    projection_info = sample.GetProjectionRef()
-    where = projection_info.find('UTM zone') + 9
-    utm_info = projection_info[where:where+3]
-    utm_number, utm_letter = int(utm_info[0:2]), utm_info[2]
-    return utm_number, utm_letter
+    prj = sample.GetProjectionRef()
+    srs = osr.SpatialReference(wkt=prj)
+    return srs.GetUTMZone(), srs.ExportToProj4()
 
+def execute_this(command):
+    proc = subprocess.Popen([command], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return proc.communicate()
 
 
 class BoatDetector(GbdxTaskInterface):
@@ -93,18 +94,12 @@ class BoatDetector(GbdxTaskInterface):
             self.mask_path, self.mask = None, None
 
         # String inputs
-        self.threshold = float(self.get_input_string_port('threshold', '0.657'))
-        self.with_mask = self.get_input_string_port('with_mask', 'true')
-        self.closing = int(self.get_input_string_port('closing', '40'))
-        self.min_linearity = float(self.get_input_string_port('min_linearity', '1.0'))
+        self.threshold = float(self.get_input_string_port('threshold', '0.5'))
+        self.erosion = int(self.get_input_string_port('erosion', '100'))
+        self.min_linearity = float(self.get_input_string_port('min_linearity', '2.0'))
         self.max_linearity = float(self.get_input_string_port('max_linearity', '8.0'))
-        self.min_size = int(self.get_input_string_port('min_size', '50'))
+        self.min_size = int(self.get_input_string_port('min_size', '500'))
         self.max_size = int(self.get_input_string_port('max_size', '6000'))
-
-        if self.with_mask in ['True', 'true', 't']:
-            self.with_mask = True
-        else:
-            self.with_mask = False
 
         # Create output directories
         self.detections_dir = self.get_output_data_port('detections')
@@ -130,50 +125,52 @@ class BoatDetector(GbdxTaskInterface):
         # Get number of bands (depends on sensor)
         no_bands = gdal.Open(self.ms_image).RasterCount
 
-        # If mask is not provided and with_mask is true then make one
-        if not self.mask and self.with_mask:
+        # If mask is not provided then make one
+        if not self.mask:
 
             print 'Creating water mask'
             make_mask = True
 
-            # Compute normalized difference water index
-            rbr = protogen.Interface('radex_scalar', 'band_ratio')
-            rbr.radex_scalar.band_ratio.index_formula = 'IDX1'
-            rbr.radex_scalar.band_ratio.output_datatype = 'UINT8'
-            rbr.image = self.ms_image
-            rbr.image_config.bands = [1, no_bands]
-            rbr.execute()
+            print '- compute extent in utm coordinates'
+            img = gdal.Open(self.ms_image)
+            ulx, xres, xskew, uly, yskew, yres  = img.GetGeoTransform()
+            lrx = ulx + (img.RasterXSize * xres)
+            lry = uly + (img.RasterYSize * yres)
+            utm_number, utm_proj4 = get_utm_info(self.ms_image)
+            print '- UTM {}: ulx, uly, lrx, lry: {} {} {} {}'.format(utm_number, ulx, uly, lrx, lry)
+            northern = (utm_number>0)
 
-            # Create mask
-            mot = protogen.Interface('morphology', 'threshold')
-            mot.morphology.threshold.algorithm = 'brute_force'
-            mot.morphology.threshold.threshold = 128
-            mot.morphology.threshold.new_min_value = 0
-            mot.morphology.threshold.new_max_value = 255
-            mot.image = rbr.output
-            mot.image_config.bands = [1]
-            mot.execute()
+            # Get extent in EPSG:4326
+            y1, x1 = utm.to_latlon(ulx, uly, zone_number=abs(utm_number), northern=northern)
+            y2, x2 = utm.to_latlon(lrx, uly, zone_number=abs(utm_number), northern=northern)
+            y3, x3 = utm.to_latlon(lrx, lry, zone_number=abs(utm_number), northern=northern)
+            y4, x4 = utm.to_latlon(ulx, lry, zone_number=abs(utm_number), northern=northern)
 
-            # Remove small bodies in mask (could be land water bodies or shadows) with union find size filtering
-            uff = protogen.Interface('union_find', 'filter')
-            uff.unionfind.filter.labels_type = 'binary'
-            uff.unionfind.filter.object_representation = 'coverage'
-            uff.unionfind.filter.spatial_connectivity = 4
-            uff.athos.dimensions = 2
-            uff.athos.tree_type = 'union_find'
-            uff.athos.area.usage = ['remove if less']
-            uff.athos.area.min = [250000]
-            uff.image = mot.output
-            uff.image_config.bands = [1]
-            uff.execute()
+            print '- clip water polygons to raster extent and reproject clipped shapefile to UTM'
+            buffer_min, buffer_max = 0.99, 1.01
+            command = 'ogr2ogr {} {} -spat {} {} {} {} -clipsrc spat_extent'.format('/water-polygons/water.shp',
+                                                                                    '/water-polygons/water_polygons.shp',
+                                                                                    buffer_min*min(x1, x4),
+                                                                                    buffer_min*min(y3, y4),
+                                                                                    buffer_max*max(x2, x3),
+                                                                                    buffer_max*max(y1, y2))
+            out, err = execute_this(command)
+            command = """ogr2ogr {} {} -s_srs EPSG:4326 -t_srs '{}'""".format('/water-polygons/water-utm.shp',
+                                                                              '/water-polygons/water.shp',
+                                                                              utm_proj4)
+            out, err = execute_this(command)
+
+            print '- burn mask'
+            command = 'gdal_rasterize -ot Byte -burn 255 -te {} {} {} {} -tr {} {} {} {}'.format(ulx, lry, lrx, uly, xres, yres, '/water-polygons/water-utm.shp', 'mask.tif')
+            out, err = execute_this(command)
 
             # Copy mask to output folder
-            shutil.copy(uff.output, join(self.output_mask_dir, 'mask.tif'))
+            shutil.copy('mask.tif', self.output_mask_dir)
 
-        # If mask is provided and with_mask is true then use the provided one
-        elif self.mask and self.with_mask:
+        # If mask is provided then use the provided one
+        elif self.mask:
             make_mask = False
-            shutil.copy(join(self.mask_path, self.mask), '.')
+            shutil.copy(join(self.mask_path, self.mask), 'mask.tif')
 
         # Compute band dissimilarity map with radex
         print 'Compute dissimilarity map'
@@ -184,45 +181,38 @@ class BoatDetector(GbdxTaskInterface):
         rbd.image_config.bands = range(1, no_bands+1)
         rbd.execute()
 
-        if self.with_mask:
+        # Apply erosion to water mask
+        print 'Eroding water mask'
+        msd = protogen.Interface('morphology', 'structural')
+        msd.morphology.structural.operator = 'erosion'
+        msd.morphology.structural.structuring_element = 'disk'
+        msd.morphology.structural.radius1 = self.erosion
+        msd.image = 'mask.tif'
+        msd.image_config.bands = [1]
+        msd.execute()
 
-            # Apply a closing to remove holes in the water mask (from boats and other anomalies)
-            print 'Closing water mask'
-            msd = protogen.Interface('morphology', 'structural')
-            msd.morphology.structural.operator = 'closing'
-            msd.morphology.structural.structuring_element = 'disk'
-            msd.morphology.structural.radius1 = self.closing
-            if self.mask:
-                msd.image = self.mask
-    	    else:
-                msd.image = uff.output
-            msd.image_config.bands = [1]
-            msd.execute()
-
-            if not make_mask:
-                print 'Match mask and image'
-                # Match the dimensions of the external mask to the dissimilarity map
-                # (in case there are minor differences which will mess up the masking)
-                ipm = protogen.Interface('image_processor', 'match')
-                ipm.image = msd.output
-                ipm.image_config.bands = [1]
-                ipm.slave = rbd.output
-                ipm.slave_config.bands = [1]
-                ipm.execute()
-
-            # Apply the mask on the dissimilarity map
-            print 'Apply mask on dissimilarity map'
-            im = protogen.Interface('image_processor', 'masking')
-            im.image_processor.masking.method = 'inclusion'
-            im.image_processor.masking.tree_type = 'raw'
-            im.image = rbd.output
-            im.image_config.bands = [1]
-            if not make_mask:
-                im.mask = ipm.output
-            else:
-                im.mask = msd.output
-            im.mask_config.bands = [1]
-            im.execute()
+        # Apply the mask on the dissimilarity map
+        print 'Apply mask on dissimilarity map'
+        im = protogen.Interface('image_processor', 'masking')
+        im.image_processor.masking.method = 'inclusion'
+        im.image_processor.masking.tree_type = 'raw'
+        im.image = rbd.output
+        im.image_config.bands = [1]
+        if not make_mask:
+            print 'Match mask and image'
+            # Match the dimensions of the external mask to the dissimilarity map
+            # (in case there are minor differences which will mess up the masking)
+            ipm = protogen.Interface('image_processor', 'match')
+            ipm.image = msd.output
+            ipm.image_config.bands = [1]
+            ipm.slave = rbd.output
+            ipm.slave_config.bands = [1]
+            ipm.execute()
+            im.mask = ipm.output
+        else:
+            im.mask = msd.output
+        im.mask_config.bands = [1]
+        im.execute()
 
         # Min-tree filtering to find objects that conform to boat geometric characteristics
         print 'Find boat candidates with min-tree filtering'
@@ -238,10 +228,7 @@ class BoatDetector(GbdxTaskInterface):
         mf.athos.linearity2.usage = ['remove if outside']
         mf.athos.linearity2.min = [self.min_linearity]
         mf.athos.linearity2.max = [self.max_linearity]
-        if self.with_mask:
-            mf.image = im.output
-        else:
-            mf.image = rbd.output
+        mf.image = im.output
         mf.image_config.bands = [1]
         mf.execute()
 
@@ -279,7 +266,7 @@ class BoatDetector(GbdxTaskInterface):
         'Extract chips from pan-sharpened image.'
 
         # Get UTM info for conversion
-        utm_num, utm_let = get_utm_info(join(self.ps_image_path, self.ps_image))
+        utm_num, utm_proj4 = get_utm_info(join(self.ps_image_path, self.ps_image))
 
         with open(join(self.ms_image_path, 'candidates.geojson')) as f:
             feature_collection = geojson.load(f)['features']
@@ -303,16 +290,16 @@ class BoatDetector(GbdxTaskInterface):
             # format gdal_translate command
             out_loc = join(chip_dir, str(f_id) + '.tif')
 
-            cmd = 'gdal_translate -eco -q -projwin {0} {1} {2} {3} {4} {5} '\
-                  '--config GDAL_TIFF_INTERNAL_MASK YES -co TILED='\
-                  'YES'.format(str(ulx), str(uly), str(lrx), str(lry),
-                               join(self.ps_image_path, self.ps_image), out_loc)
+            command = 'gdal_translate -eco -q -projwin {} {} {} {} {} {} '\
+                      '--config GDAL_TIFF_INTERNAL_MASK YES -co TILED='\
+                      'YES'.format(ulx, uly, lrx, lry,
+                                   join(self.ps_image_path, self.ps_image), out_loc)
 
             try:
-                subprocess.call(cmd, shell=True)
+                execute_this(command)
             except:
                 # Don't throw error if chip is ouside raster
-                print 'gdal_translate failed for the following command: ' + cmd # debug
+                print 'gdal_translate failed for the following command: ' + command # debug
 
         return True
 

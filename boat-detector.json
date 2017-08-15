@@ -1,7 +1,7 @@
 {
     "name": "boat-detector",
-    "version": "0.1.5",
-    "description": "A GBDX task that detects boats at sea or at the dock. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).",
+    "version": "0.1.6",
+    "description": "A GBDX task that detects boats at sea. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).",
     "properties": {
         "isPublic": true,
         "timeout": 18000
@@ -26,27 +26,21 @@
             "required": false
         },
         {
-            "name": "with_mask",
-            "type": "string",
-            "description": "If false, there is no water masking. If true and a mask is supplied then masking is performed with the supplied mask. If true and a mask is not supplied then a water mask is computed and masking is performed with the computed mask. The default is true.",
-            "required": false
-        },
-        {
             "name": "threshold",
             "type": "string",
-            "description": "Decision threshold. Defaults to 0.657.",
+            "description": "Decision threshold. Defaults to 0.5.",
             "required": false
         },
         {
-            "name": "closing",
+            "name": "erosion",
             "type": "string",
-            "description": "Radius of closing disk in m. Use this to close holes in the water mask. Default is 40.",
+            "description": "Radius of erosion disk in m. Use this to erode the water mask in order to distance the search area from the coastline. Default is 100.",
             "required": false
         },
         {
             "name": "min_linearity",
             "type": "string",
-            "description": "The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 1.",
+            "description": "The minimum allowable ratio of the major and minor axes lengths of a detected feature. Default is 2.",
             "required": false
         },
         {
@@ -58,7 +52,7 @@
         {
             "name": "min_size",
             "type": "string",
-            "description": "Minimum boat candidate size in m2. Default is 50.",
+            "description": "Minimum boat candidate size in m2. Default is 500.",
             "required": false
         },
         {
@@ -81,7 +75,7 @@
         },
         {   "name": "mask",
             "type": "directory",
-            "description": "Contains water mask if a water_mask is created, i.e., water_mask is true and no water mask is provided as input."
+            "description": "Contains water mask if a water_mask is created."
         }
     ],
     "containerDescriptors": [
@@ -89,7 +83,7 @@
             "type": "DOCKER",
             "properties": {
                 "image": "tdgp/boat-detector",
-                "domain": "nvidiap2"
+                "domain": "nvidiagpu"
             },
             "command": "python /boat-detector.py",
             "isPublic": true
