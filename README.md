@@ -26,7 +26,7 @@ This is a sample workflow to detect boats in the New York area. The required inp
 2. Create a task instance and set the required [inputs](#inputs):  
 
     ```python
-    bd = gbdx.Task('boat-detector-dev')
+    bd = gbdx.Task('boat-detector')
     bd.inputs.ps_image = join(input_location, 'ps_image')
     bd.inputs.ms_image = join(input_location, 'ms_image')
     ```
@@ -109,7 +109,7 @@ Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamb
 
 #### Runtime
 
-Approximately 0.8sec/km2, based on experiments at the ports of Vancouver, San Francisco, New York, New Orleans and Charleston using the GBDX nvidiag2 domain. This figure is image, location and input parameter dependent.
+Approximately 1-2 sec/km2, based on experiments at the ports of Vancouver, San Francisco and New York using the GBDX nvidiag2 domain. This figure is image, location and input parameter dependent.
 
 ## Development
 
