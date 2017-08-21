@@ -19,7 +19,8 @@
             "description": "Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily.",
             "required": true
         },
-            "name": "model", 
+        {
+            "name": "model",
             "type": "directory",
             "description": "Contains a keras model in h5 format.",
             "required": false
