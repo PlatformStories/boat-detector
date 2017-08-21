@@ -96,7 +96,7 @@ class BoatDetector(GbdxTaskInterface):
         # Point to model file if it's there. If not, use locally stored model.
         try:
             self.model = glob.glob(os.path.join(self.get_input_data_port('model'), '*'))[0]
-        except IndexError:
+        except:
             self.model = '/model.h5'
 
         # String inputs
