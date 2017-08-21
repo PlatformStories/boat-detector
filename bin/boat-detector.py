@@ -93,6 +93,12 @@ class BoatDetector(GbdxTaskInterface):
         except:
             self.mask_path, self.mask = None, None
 
+        # Point to model file if it's there. If not, use locally stored model.
+        try:
+            self.model = glob.glob(os.path.join(self.get_input_data_port('model'), '*'))[0]
+        except IndexError:
+            self.model = '/model.h5'
+
         # String inputs
         self.threshold = float(self.get_input_string_port('threshold', '0.5'))
         self.erosion = int(self.get_input_string_port('erosion', '100'))
@@ -306,7 +312,7 @@ class BoatDetector(GbdxTaskInterface):
 
     def deploy_model(self):
         'Deploy model.'
-        model = load_model('/model.h5')
+        model = load_model(self.model)
         boats = {}
         chips = glob(join('chips', '*.tif'))
 

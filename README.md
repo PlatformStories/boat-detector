@@ -60,7 +60,7 @@ The task does the following:
 + If a water mask is not provided as input, it computes one using [OSM coastline vectors](http://openstreetmapdata.com/data/water-polygons). If a water mask is provided as input, it uses that water mask. An erosion is applied to the water mask in order to distance the search area from the coastline.
 + Computes a dissimilarity map between adjacent pixels of the multispectral image in order to highlight material differences.
 + Masks the dissimilarity map with the water mask then detects elongated features within a given size range in the masked dissimilarity map using max-tree filtering to produce a set of candidate bounding boxes.
-+ Chips out the candidates from the pan-sharpened image and feeds them to a Keras model which classifies each candidate as 'Boat' and 'Other'.
++ Chips out the candidates from the pan-sharpened image and feeds them to a Keras model which classifies each candidate as 'Boat' and 'Other'. If a model is not provided as input, the task uses a default model built into the container.
 
 
 
@@ -72,6 +72,7 @@ GBDX input ports can only be of "directory" or "string" type. Booleans, integers
 |---|---|---|---|
 | ms_image | directory | Contains a 4/8-band atmospherically multispectral image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
 | ps_image | directory | Contains the pan-sharpened counterpart of the multispectal image in geotiff format and UTM projection. This directory should contain only one image otherwise one is selected arbitrarily. | True |
+| model | directory | Contains a keras model in h5 format. | False |
 | mask | directory | Contains a binary image of the same spatial dimensions as the input multispectral image where intensity 255 corresponds to water and intensity 0 to background. | False |
 | threshold | string | Decision threshold. Defaults to 0.5. | False |
 | erosion | string | Radius of erosion disk in m. Use this to erode the water mask in order to distance the search area from the coastline. Default is 100. | False |
