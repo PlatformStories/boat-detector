@@ -98,7 +98,7 @@ GBDX input ports can only be of "directory" or "string" type. Booleans, integers
 + Boats that are attached to each other will most likely be lumped into one detection.
 + The wake of a boat will generally be included in the detection bounding box.
 + The parameters min_linearity, max_linearity and min_area, max_area refer to the linearity and size limits of the features detected by the algorithm. A boat might be attached to an adjacent object or to its wake. Allow for some margin when setting these parameters. Keep in mind that the classifier has been trained on candidates derived with the default parameters.
-+ The maximum acceptable size of the input multispectral image depends on the available memory. We have run the algorithm on entire WV3 strips with no problems using an AWS r4.2xlarge instance.
++ The maximum acceptable size of the input multispectral image depends on the available memory. We have run the algorithm on entire WV3 strips with no problem on the p2.xlarge instance.
 
 ## Changelog
 
@@ -110,7 +110,7 @@ Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamb
 
 #### Runtime
 
-Approximately 1-2 sec/km2, based on experiments at the ports of Vancouver, San Francisco and New York using the GBDX nvidiag2 domain. This figure is image, location and input parameter dependent.
+Approximately 1-2 sec/km2, based on experiments at the ports of Vancouver, San Francisco and New York using the GBDX nvidiap2 domain. This figure is image, location and input parameter dependent.
 
 ## Development
 
