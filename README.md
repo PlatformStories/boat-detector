@@ -106,7 +106,7 @@ GBDX input ports can only be of "directory" or "string" type. Booleans, integers
 
 #### Training
 
-Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The imagery was atmospherically compensated and pan-sharpened using base-layer matching ([example](https://github.com/PlatformStories/notebooks/blob/master/Order%20and%20preprocess%20imagery.ipynb)). The architecture of the neural network is ResNet.
+Trained at the ports Shanghai, Singapore, Hong Kong, Rotterdam, Kaoh Siung, Hamburg, Jeddah, Algeciras, Mumbai, Santos, Piraeus, Istanbul and Yokohama using WV02, WV03 and GeoEye imagery collected between 2015 and 2017, and approximately 10000 labeled candidates equally divided between the these locations. The imagery was atmospherically compensated and pan-sharpened using base-layer matching ([example](https://github.com/PlatformStories/notebooks/blob/master/Order%20and%20preprocess%20imagery.ipynb)). The architecture of the neural network is VGG-16.
 
 #### Runtime
 
