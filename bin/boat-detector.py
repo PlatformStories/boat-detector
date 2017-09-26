@@ -290,8 +290,8 @@ class BoatDetector(GbdxTaskInterface):
             ulx, lrx, uly, lry = min(xs), max(xs), max(ys), min(ys)
 
             # Convert corner coords to UTM
-            ulx, uly, utm_num1, utm_let1 = utm.from_latlon(uly, ulx, force_zone_number=utm_num)
-            lrx, lry, utm_num2, utm_let2 = utm.from_latlon(lry, lrx, force_zone_number=utm_num)
+            ulx, uly, utm_num1, utm_let1 = utm.from_latlon(uly, ulx, force_zone_number=abs(utm_num))
+            lrx, lry, utm_num2, utm_let2 = utm.from_latlon(lry, lrx, force_zone_number=abs(utm_num))
 
             # format gdal_translate command
             out_loc = join(chip_dir, str(f_id) + '.tif')
