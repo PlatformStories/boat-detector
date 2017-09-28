@@ -2,7 +2,7 @@
 
 A GBDX task that detects boats at sea. Boats include ships, vessels, speed boats, barges and cranes (self-propelled or not).
 
-The inputs to the task are a 4/8-band multispectral image and its pan-sharpened counterpart. The output is a geojson file with the detection bounding boxes.
+The inputs to the task are a 4/8-band multispectral image and its RGB pan-sharpened counterpart. The output is a geojson file with the detection bounding boxes.
 
 <img src='images/boat-detector.png' width=700>
 
@@ -60,7 +60,7 @@ The task does the following:
 + If a water mask is not provided as input, it computes one using [OSM coastline vectors](http://openstreetmapdata.com/data/water-polygons). If a water mask is provided as input, it uses that water mask. An erosion is applied to the water mask in order to distance the search area from the coastline.
 + Computes a dissimilarity map between adjacent pixels of the multispectral image in order to highlight material differences.
 + Masks the dissimilarity map with the water mask then detects elongated features within a given size range in the masked dissimilarity map using max-tree filtering to produce a set of candidate bounding boxes.
-+ Chips out the candidates from the pan-sharpened image and feeds them to a Keras model which classifies each candidate as 'Boat' and 'Other'. If a model is not provided as input, the task uses a default model built into the container.
++ Chips out the candidates from the RGB pan-sharpened image and feeds them to a Keras model which classifies each candidate as 'Boat' and 'Other'. If a model is not provided as input, the task uses a default model built into the container.
 
 
 
