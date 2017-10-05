@@ -19,7 +19,7 @@ RUN apt-get -y update && apt-get -y install \
     git && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install awscli Keras==2.0.6 geojson h5py tensorflow-gpu utm
+RUN pip install awscli Keras==2.0.6 geojson h5py tensorflow-gpu==1.2.1 utm
 
 ARG PROTOUSER
 ARG PROTOPASSWORD
