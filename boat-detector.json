@@ -1,6 +1,7 @@
 {
     "name": "boat-detector",
     "version": "0.2.1",
+    "taskOwnerEmail": "kostas.stamatiou@digitalglobe.com",
     "description": "A GBDX task that detects boats at sea. Boats include ships, vessels, speed boats, barges and cranes (self- propelled or not).",
     "properties": {
         "isPublic": true,
